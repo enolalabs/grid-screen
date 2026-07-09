@@ -15,8 +15,11 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5",
     "@tauri-apps/cli": "^2",
+    "@testing-library/svelte": "^5",
+    "jsdom": "^25",
     "svelte": "^5",
     "typescript": "^5",
-    "vite": "^6"
+    "vite": "^6",
+    "vitest": "^3"
   }
 }
