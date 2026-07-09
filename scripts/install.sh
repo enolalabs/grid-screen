@@ -55,6 +55,11 @@ echo ""
 info "Step 1/7: Installing system dependencies..."
 
 install_deps() {
+    if ! command -v sudo &>/dev/null; then
+        warn "sudo not available — skipping system dependencies"
+        warn "Ensure these are pre-installed: libgtk-3-dev, libwebkit2gtk-4.1-dev, libx11-dev"
+        return 0
+    fi
     case "$PKG_MGR" in
         apt)
             sudo apt update -qq
@@ -87,7 +92,7 @@ install_deps() {
             ;;
     esac
 }
-install_deps
+install_deps || true
 ok "System dependencies installed"
 
 # ── Step 2: Rust ─────────────────────────────────
@@ -169,7 +174,7 @@ if [[ "$INSTALL_MODE" == "dev" ]]; then
     BINARY_PATH="$INSTALL_DIR/src-tauri/target/debug/grid-screen"
 else
     info "Building Rust (release mode)..."
-    npx tauri build --ci 2>&1 | tail -10
+    cargo build --release --manifest-path src-tauri/Cargo.toml 2>&1 | tail -5
     BINARY_PATH="$INSTALL_DIR/src-tauri/target/release/grid-screen"
 fi
 
