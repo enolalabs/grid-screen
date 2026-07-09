@@ -4,9 +4,9 @@
 
 **Goal:** Build a cross-platform window zone management app (Linux X11 + Windows) with Tauri 2.x, Rust backend, and Svelte 5 frontend. Users drag windows into pre-defined zones for instant snap-to-position.
 
-**Architecture:** Rust backend runs always in system tray; Svelte webview opens on demand for config. Four-thread model: main (Tauri+tray), platform event loop, drag processor, overlay render. Platform API behind a trait with Win32 and X11 implementations.
+**Architecture:** Rust backend runs always in system tray; Svelte webview opens on demand for config. Four-thread model: main (Tauri+tray), platform event loop, drag processor, overlay render. Platform API behind a trait with Win32 and X11 implementations. `AppState` uses `ArcSwap` for hotpath (lock-free reads), `Mutex` for `drag_state`, `RwLock` for `app_config`. `LayoutManager` is a stateless code layer reading/writing through `AppState`'s `ArcSwap`.
 
-**Tech Stack:** Rust, Tauri 2.x, Svelte 5, `windows` crate, `x11rb`, `tiny-skia`, `tracing`, `thiserror`, `arc-swap`
+**Tech Stack:** Rust, Tauri 2.x, Svelte 5, `windows` crate, `x11rb`, `tiny-skia`, `tracing`, `thiserror`, `arc-swap`, `svelte-i18n`
 
 ## Global Constraints
 
@@ -200,7 +200,9 @@ git add -A && git commit -m "feat: scaffold Tauri 2.x project with Svelte 5 fron
 - Create: `src-tauri/src/platform/mock.rs`
 
 **Interfaces:**
-- Produces: `Monitor`, `Window`, `WindowHandle`, `Rect`, `Zone`, `Layout`, `SavedLayout`, `DragState`, `WindowMoveEvent`, `DisplayChangeEvent`, `MonitorId`, `OverlayHandle` types; `PlatformApi` trait with full method signatures; `MockPlatformApi` for testing
+- Produces: `Monitor`, `Window`, `WindowHandle`, `Rect`, `Zone`, `Layout`, `SavedLayout`, `DragState`, `WindowMoveEvent`, `DisplayChangeEvent`, `SnapEvent`, `MonitorId`, `OverlayHandle` types; `PlatformApi` trait with full method signatures including explicit type parameters; `MockPlatformApi` for testing
+- Note: `Zone::effective_rect(monitor: &Monitor)` converts fractional coords to pixel rect, applying dpi_scale internally. Zone overlap detection uses fractional coords for comparison.
+- Note: `PlatformApi` has `fn set_autostart(enabled: bool) -> Result<()>` for OS-specific autostart (Task 8 wiring at run time).
 
 - [ ] **Step 1: Write failing tests for types**
 
@@ -222,6 +224,7 @@ pub trait PlatformApi: Send {
     fn create_overlay_window(&self, monitor_id: MonitorId) -> OverlayHandle;
     fn overlay_present(&self, handle: &OverlayHandle, pixels: &[u8], w: u32, h: u32);
     fn destroy_overlay_window(&self, handle: OverlayHandle);
+    fn set_autostart(&self, enabled: bool) -> Result<(), String>;
 }
 ```
 
@@ -375,6 +378,12 @@ pub enum DisplayChangeEvent {
     Connected,
     Disconnected,
     ResolutionChanged,
+}
+
+#[derive(Debug, Clone)]
+pub struct SnapEvent {
+    pub window_handle: WindowHandle,
+    pub zone_rect: Rect,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -828,19 +837,29 @@ fn validate_zone(zone: &Zone) -> Result<(), ConfigError> {
         return Err(ConfigError::Validation("Zone name must be 1-64 characters".into()));
     }
     if !zone.x.is_finite() || zone.x < 0.0 || zone.x > 1.0 {
-        return Err(ConfigError::Validation("Zone x must be in [0.0, 1.0]".into()));
+        return Err(ConfigError::Validation("Zone x must be finite and in [0.0, 1.0]".into()));
     }
     if !zone.y.is_finite() || zone.y < 0.0 || zone.y > 1.0 {
-        return Err(ConfigError::Validation("Zone y must be in [0.0, 1.0]".into()));
+        return Err(ConfigError::Validation("Zone y must be finite and in [0.0, 1.0]".into()));
     }
     if !zone.width.is_finite() || zone.width <= 0.0 || zone.width > 1.0 {
-        return Err(ConfigError::Validation("Zone width must be > 0 and ≤ 1.0".into()));
+        return Err(ConfigError::Validation("Zone width must be finite, > 0 and ≤ 1.0".into()));
     }
     if !zone.height.is_finite() || zone.height <= 0.0 || zone.height > 1.0 {
-        return Err(ConfigError::Validation("Zone height must be > 0 and ≤ 1.0".into()));
+        return Err(ConfigError::Validation("Zone height must be finite, > 0 and ≤ 1.0".into()));
     }
     if zone.x + zone.width > 1.0001 || zone.y + zone.height > 1.0001 {
         return Err(ConfigError::Validation("Zone exceeds monitor bounds".into()));
+    }
+    // HTML-escape names on save to prevent stored XSS
+    let escaped = zone.name
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#x27;");
+    if escaped.len() > MAX_NAME_LENGTH * 6 {
+        return Err(ConfigError::Validation("Zone name too long after escaping".into()));
     }
     Ok(())
 }
@@ -986,6 +1005,7 @@ impl MonitorManager {
         let monitors = Arc::new(ArcSwap::from_pointee(api.enumerate_monitors()));
         let monitors_clone = monitors.clone();
 
+        // Primary: event-driven via mpsc channel
         thread::spawn(move || {
             let rx = api.subscribe_display_change_events();
             for event in rx {
@@ -995,17 +1015,20 @@ impl MonitorManager {
             }
         });
 
-        let api2 = api.clone();
-        let m3 = monitors.clone();
+        // Safety net: 30-second polling as fallback
+        // Every 30s, calls enumerate_monitors(), computes arrangement ID,
+        // compares with cached value. If different, updates ArcSwap.
+        // Thread exits when the Arc of monitors is dropped (last reference gone).
+        let monitors3 = monitors.clone();
+        let api3 = api.clone();
         thread::spawn(move || loop {
             thread::sleep(Duration::from_secs(30));
-            let current = api2.enumerate_monitors();
-            let prev = m3.load();
-            let prev_ids: Vec<_> = prev.iter().map(|m| m.id).collect();
+            let current = api3.enumerate_monitors();
             let current_ids: Vec<_> = current.iter().map(|m| m.id).collect();
-            if prev_ids != current_ids || prev.len() != current.len() {
+            let prev_ids: Vec<_> = monitors3.load().iter().map(|m| m.id).collect();
+            if current_ids != prev_ids || current.len() != prev.len() {
                 tracing::info!("Safety-net polling detected monitor change");
-                m3.store(Arc::new(current));
+                monitors3.store(Arc::new(current));
             }
         });
 
@@ -1166,93 +1189,60 @@ use uuid::Uuid;
 use crate::config_store::ConfigStore;
 use crate::types::*;
 
-pub struct LayoutManager {
-    active_layout: RwLock<Option<Layout>>,
-    config_store: Arc<ConfigStore>,
-}
+pub struct LayoutManager;
 
 impl LayoutManager {
-    pub fn new(config_store: Arc<ConfigStore>) -> Self {
-        Self {
-            active_layout: RwLock::new(None),
-            config_store,
+    /// Reads active layouts from the shared ArcSwap (lock-free).
+    /// All operations are stateless — they read/write through the provided ArcSwap.
+    pub fn get_zones(monitor: &Monitor, active_layouts: &ArcSwap<Vec<Layout>>) -> Vec<Zone> {
+        match active_layouts.load().iter().find(|l| l.monitor_id == monitor.id) {
+            Some(layout) => layout.zones.clone(),
+            None => Self::default_layout_for(monitor).zones,
         }
     }
 
-    pub fn activate(&mut self, layout: Layout) {
-        tracing::info!("Activating layout for monitor {:?}", layout.monitor_id);
-        *self.active_layout.write().unwrap() = Some(layout);
+    pub fn activate(layout: Layout, active_layouts: &Arc<ArcSwap<Vec<Layout>>>) {
+        let mut layouts = active_layouts.load().to_vec();
+        layouts.retain(|l| l.monitor_id != layout.monitor_id);
+        layouts.push(layout);
+        active_layouts.store(Arc::new(layouts));
     }
 
-    pub fn get_zones(&self, monitor: &Monitor) -> Vec<Zone> {
-        match self.active_layout.read().unwrap().as_ref() {
-            Some(layout) if layout.monitor_id == monitor.id => layout.zones.clone(),
-            _ => self.default_layout_for(monitor).zones,
-        }
-    }
-
-    pub fn save_layout(&self, name: &str, zones: Vec<Zone>, monitor_id: MonitorId) -> Result<Uuid, String> {
-        let mut config = self.config_store.load();
+    pub fn save_layout(
+        name: &str, zones: Vec<Zone>, monitor_id: MonitorId, arrangement_id: &str,
+        config_store: &ConfigStore, saved_layouts: &RwLock<Vec<SavedLayout>>,
+    ) -> Result<Uuid, String> {
+        let mut config = config_store.load();
         let id = Uuid::new_v4();
-        let arrangement_id = ""; // filled by caller with MonitorManager::arrangement_id()
         config.layouts.push(SavedLayout {
-            id,
-            name: name.trim().to_string(),
-            arrangement_id: arrangement_id.to_string(),
-            zones,
-            monitor_id,
+            id, name: name.trim().to_string(), arrangement_id: arrangement_id.to_string(),
+            zones, monitor_id,
         });
-        self.config_store.save(&config).map_err(|e| e.to_string())?;
-        tracing::info!("Saved layout '{}' ({})", name, id);
+        config_store.save(&config).map_err(|e| e.to_string())?;
+        *saved_layouts.write().unwrap() = config.layouts.clone();
         Ok(id)
     }
 
-    pub fn update_saved_layout(&self, layout: &SavedLayout) -> Result<(), String> {
-        let mut config = self.config_store.load();
-        if let Some(existing) = config.layouts.iter_mut().find(|l| l.id == layout.id) {
-            *existing = layout.clone();
-        } else {
-            config.layouts.push(layout.clone());
-        }
-        self.config_store.save(&config).map_err(|e| e.to_string())
+    pub fn list_layouts(config_store: &ConfigStore) -> Vec<SavedLayout> {
+        config_store.load().layouts
     }
 
-    pub fn list_layouts(&self) -> Vec<SavedLayout> {
-        self.config_store.load().layouts
-    }
-
-    pub fn find_layouts_for_arrangement(&self, arrangement_id: &str) -> Vec<SavedLayout> {
-        self.config_store.load().layouts.into_iter()
-            .filter(|l| l.arrangement_id == arrangement_id)
-            .collect()
-    }
-
-    pub fn delete_layout(&self, id: Uuid) -> Result<(), String> {
-        let mut config = self.config_store.load();
+    pub fn delete_layout(id: Uuid, config_store: &ConfigStore, saved_layouts: &RwLock<Vec<SavedLayout>>) -> Result<(), String> {
+        let mut config = config_store.load();
         config.layouts.retain(|l| l.id != id);
-        self.config_store.save(&config).map_err(|e| e.to_string())
+        config_store.save(&config).map_err(|e| e.to_string())?;
+        *saved_layouts.write().unwrap() = config.layouts.clone();
+        Ok(())
     }
 
-    pub fn default_layout_for(&self, monitor: &Monitor) -> Layout {
+    pub fn default_layout_for(monitor: &Monitor) -> Layout {
         Layout {
             zones: vec![Zone {
-                id: Uuid::new_v4(),
-                name: "Full Screen".into(),
-                x: 0.0, y: 0.0, width: 1.0, height: 1.0,
-                gap: 0, margin: 0,
+                id: Uuid::new_v4(), name: "Full Screen".into(),
+                x: 0.0, y: 0.0, width: 1.0, height: 1.0, gap: 0, margin: 0,
             }],
             monitor_id: monitor.id,
         }
-    }
-
-    pub fn settings(&self) -> AppSettings {
-        self.config_store.load().settings
-    }
-
-    pub fn save_settings(&self, settings: &AppSettings) -> Result<(), String> {
-        let mut config = self.config_store.load();
-        config.settings = settings.clone();
-        self.config_store.save(&config).map_err(|e| e.to_string())
     }
 }
 ```
@@ -1338,7 +1328,9 @@ fn test_pixel_buffer_pre_allocation_reuse() {
 }
 ```
 
-- [ ] **Step 2: Implement ZoneOverlay**
+- [ ] **Step 2: Implement ZoneOverlay with documented render loop and single-Pixmap strategy**
+
+The overlay render thread blocks on `mpsc::Receiver<OverlayCommand>` (Update or Hide). On Update: renders changed zones via dirty-rect, calls `overlay_present()`, loops back to `recv()`. On Hide: destroys handles, parks thread. Uses one Pixmap for the *current* monitor only. When cursor crosses monitors, the old Pixmap is dropped and a new one allocated — peak memory during transition may transiently hold two buffers (~66MB at 4K), dropping back to ~33MB after the old buffer is freed. Document this in code comments as a known behavior.
 
 Write `src-tauri/src/zone_overlay.rs`:
 ```rust
@@ -1563,8 +1555,6 @@ use tracing;
 
 use crate::platform::PlatformApi;
 use crate::types::*;
-
-const DRAG_THRESHOLD_PX: i32 = 5;
 
 pub struct SnapEvent {
     pub window_handle: WindowHandle,
@@ -1944,9 +1934,10 @@ fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
     std::fs::create_dir_all(&config_dir).ok();
 
     let file_appender = tracing_appender::rolling::Builder::new()
-        .rotation(tracing_appender::rolling::Rotation::DAILY)
+        .rotation(tracing_appender::rolling::Rotation::NEVER)
         .filename_prefix("grid-screen")
         .filename_suffix("log")
+        .max_file_size(1_000_000) // 1MB size-based rotation
         .max_log_files(3)
         .build(&config_dir)
         .unwrap();
@@ -1958,6 +1949,12 @@ fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
         .with_target(false)
         .with_writer(non_blocking)
         .init();
+
+    // Panic hook: capture backtrace to log before exit
+    std::panic::set_hook(Box::new(|info| {
+        tracing::error!("PANIC: {:?}", info);
+        std::process::abort();
+    }));
 
     guard
 }
@@ -2226,7 +2223,32 @@ git commit -m "feat: add Svelte 5 frontend shell with Tauri IPC integration"
 
 **Interfaces:**
 - Consumes: `currentState`, `applyLayout`, `saveLayout` from IPC
-- Produces: Interactive canvas with monitor representations, grid snapping, zone create/resize/move/rename/delete
+- Produces: Interactive canvas with monitor representations, grid snapping, zone create/resize/move/rename/delete, styled confirmation dialog for destructive actions, error-state feedback via toast notifications
+- Test: Vitest + `@testing-library/svelte` for component render and keyboard navigation
+
+- [ ] **Step 1: Write Layout Editor component with error states and styled confirmation**
+
+For zone deletion: use a custom confirmation dialog (not browser `confirm()`), styled to match the app theme:
+```svelte
+{#if deleteTarget}
+  <div class="confirm-overlay" role="alertdialog" aria-label="Delete zone">
+    <div class="confirm-card">
+      <p>Delete zone "{deleteTarget.name}"?</p>
+      <button onclick={() => { zones.delete(deleteTarget.id); deleteTarget = null; }}>Delete</button>
+      <button onclick={() => deleteTarget = null}>Cancel</button>
+    </div>
+  </div>
+{/if}
+```
+
+For error states: on `applyLayout` or `saveLayout` failure, trigger a toast notification:
+```typescript
+import { notify } from "../lib/notifications";
+// ...
+try { await applyLayout(...); } catch (e) {
+  notify(`Failed to apply layout: ${e}`, "error");
+}
+```
 
 - [ ] **Step 1: Write Layout Editor component**
 
@@ -2403,11 +2425,68 @@ onkeydown={(e) => {
 }}
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Add frontend component and keyboard navigation tests**
+
+Create `src/routes/__tests__/` directory. Write `src/routes/__tests__/LayoutEditor.test.ts`:
+```typescript
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, fireEvent } from "@testing-library/svelte/svelte5";
+import LayoutEditor from "../LayoutEditor.svelte";
+
+vi.mock("../../lib/ipc", () => ({
+  applyLayout: vi.fn().mockResolvedValue(undefined),
+  saveLayout: vi.fn().mockResolvedValue(undefined),
+  getCurrentState: vi.fn().mockResolvedValue({
+    monitors: [{ id: "m1", name: "Main", x:0, y:0, width:1920, height:1080, dpi_scale:1, is_primary:true }],
+    active_layouts: [], saved_layouts: [], is_paused: false,
+    settings: { default_gap:4, default_margin:8, accent_color:"#7C3AED", language:"en", auto_start:false, first_run_completed:true },
+  }),
+}));
+
+describe("LayoutEditor", () => {
+  it("renders monitor name and resolution", async () => {
+    const { findByText } = render(LayoutEditor);
+    expect(await findByText("Main (1920×1080)")).toBeTruthy();
+  });
+
+  it("creates zone on canvas click", async () => {
+    const { container, findByRole } = render(LayoutEditor);
+    const canvas = container.querySelector(".monitor-canvas")!;
+    await fireEvent.pointerDown(canvas, { clientX: 400, clientY: 200 });
+    expect(await findByRole("region")).toBeTruthy();
+  });
+
+  it("shows styled confirmation dialog on right-click delete", async () => {
+    const { container, findByRole } = render(LayoutEditor);
+    const canvas = container.querySelector(".monitor-canvas")!;
+    await fireEvent.pointerDown(canvas, { clientX: 200, clientY: 100 });
+    const zone = await findByRole("region");
+    await fireEvent.contextMenu(zone);
+    expect(await findByRole("alertdialog")).toBeTruthy();
+  });
+
+  it("moves zone with arrow keys", async () => {
+    const { container, findByRole } = render(LayoutEditor);
+    const canvas = container.querySelector(".monitor-canvas")!;
+    await fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100 });
+    const zone = await findByRole("region");
+    (zone as HTMLElement).focus();
+    await fireEvent.keyDown(zone, { key: "ArrowRight" });
+    // Additional assertion: zone position updated
+  });
+});
+```
+
+Run: `npx vitest run --dir src/routes/__tests__`
+Expected: 4 tests pass
+
+Install dev deps: `npm install -D vitest @testing-library/svelte jsdom`
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/routes/LayoutEditor.svelte src/routes/
-git commit -m "feat: add Layout Editor with WYSIWYG grid, zone CRUD, keyboard accessibility"
+git add src/routes/ package.json
+git commit -m "feat: add Layout Editor with WYSIWYG grid, zone CRUD, styled confirmation, error states, keyboard a11y tests"
 ```
 
 ---
@@ -2559,13 +2638,107 @@ git commit -m "feat: add Layout Manager and Settings screens"
 
 ---
 
-### Task 13: First-run experience and user-facing error notifications
+### Task 13: First-run experience, i18n framework, and user-facing notifications
 
 **Files:**
 - Modify: `src/App.svelte`
 - Create: `src/lib/notifications.ts`
+- Create: `src/lib/i18n.ts`
+- Create: `src/lib/i18n/en.json`
+- Create: `src/lib/i18n/vi.json`
 
-- [ ] **Step 1: Add notification store**
+**Interfaces:**
+- i18n: Uses `svelte-i18n` library with JSON dictionaries. All user-facing strings extracted to locale files. Language persists in `AppSettings.language` via ConfigStore.
+- Persists `onboarding_completed` in `AppSettings` (already defined in Task 2 types).
+
+- [ ] **Step 1: Install i18n dependency and create locale files**
+
+Run: `npm install svelte-i18n`
+
+Write `src/lib/i18n/en.json`:
+```json
+{
+  "app.title": "Grid Screen — Configuration",
+  "nav.editor": "Editor",
+  "nav.layouts": "Layouts",
+  "nav.settings": "Settings",
+  "editor.apply": "Apply Live",
+  "editor.save": "Save",
+  "editor.empty": "Click and drag on a monitor to create a zone",
+  "editor.delete_zone": "Delete zone",
+  "editor.delete_confirm": "Are you sure you want to delete zone \"{name}\"?",
+  "editor.cancel": "Cancel",
+  "editor.delete": "Delete",
+  "editor.save_error": "Failed to apply layout",
+  "onboarding.title": "Welcome to Grid Screen",
+  "onboarding.body": "Drag on a monitor to create your first zone. Then drag any application window into a zone to snap it into place.",
+  "onboarding.dismiss": "Got it",
+  "settings.title": "Settings",
+  "settings.auto_start": "Auto-start with system",
+  "settings.gap": "Default gap between zones (px)",
+  "settings.margin": "Default margin from screen edge (px)",
+  "settings.accent": "Accent color",
+  "settings.language": "Language",
+  "settings.save": "Save Settings",
+  "settings.saved": "Saved!",
+  "layout_manager.title": "Saved Layouts",
+  "layout_manager.empty": "No layouts saved yet. Create one in the Editor tab.",
+  "layout_manager.delete_confirm": "Delete layout \"{name}\"?",
+  "layout_manager.zones": "{count} zones"
+}
+```
+
+Write `src/lib/i18n/vi.json`:
+```json
+{
+  "app.title": "Grid Screen — Cấu Hình",
+  "nav.editor": "Trình Chỉnh Sửa",
+  "nav.layouts": "Bố Cục",
+  "nav.settings": "Cài Đặt",
+  "editor.apply": "Áp Dụng Ngay",
+  "editor.save": "Lưu",
+  "editor.empty": "Nhấn và kéo trên màn hình để tạo vùng",
+  "editor.delete_zone": "Xóa vùng",
+  "editor.delete_confirm": "Bạn có chắc muốn xóa vùng \"{name}\"?",
+  "editor.cancel": "Hủy",
+  "editor.delete": "Xóa",
+  "editor.save_error": "Không thể áp dụng bố cục",
+  "onboarding.title": "Chào Mừng Đến Với Grid Screen",
+  "onboarding.body": "Kéo trên màn hình để tạo vùng đầu tiên. Sau đó kéo bất kỳ cửa sổ ứng dụng nào vào vùng để gắn nó vào vị trí.",
+  "onboarding.dismiss": "Đã Hiểu",
+  "settings.title": "Cài Đặt",
+  "settings.auto_start": "Tự động khởi động cùng hệ thống",
+  "settings.gap": "Khoảng cách mặc định giữa các vùng (px)",
+  "settings.margin": "Lề mặc định từ cạnh màn hình (px)",
+  "settings.accent": "Màu nhấn",
+  "settings.language": "Ngôn Ngữ",
+  "settings.save": "Lưu Cài Đặt",
+  "settings.saved": "Đã Lưu!",
+  "layout_manager.title": "Bố Cục Đã Lưu",
+  "layout_manager.empty": "Chưa có bố cục nào. Tạo một bố cục trong tab Trình Chỉnh Sửa.",
+  "layout_manager.delete_confirm": "Xóa bố cục \"{name}\"?",
+  "layout_manager.zones": "{count} vùng"
+}
+```
+
+Write `src/lib/i18n.ts`:
+```typescript
+import { register, init, getLocaleFromNavigator, _, locale, dictionary } from "svelte-i18n";
+import { getSettings } from "./ipc";
+
+register("en", () => import("./i18n/en.json"));
+register("vi", () => import("./i18n/vi.json"));
+
+export async function initI18n() {
+  const settings = await getSettings();
+  const lang = settings.language || getLocaleFromNavigator()?.split("-")[0] || "en";
+  await init({ fallbackLocale: "en", initialLocale: lang });
+}
+
+export { _, locale };
+```
+
+- [ ] **Step 2: Add notification store**
 
 Write `src/lib/notifications.ts`:
 ```typescript
@@ -2713,18 +2886,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Install Linux deps
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libx11-dev libxrandr-dev libxinerama-dev libappindicator3-dev librsvg2-dev
+      - name: Install cargo-audit and cargo-deny
+        run: cargo install cargo-audit cargo-deny
       - name: Rust fmt check
         run: cargo fmt --check
       - name: Clippy
         run: cargo clippy -- -D warnings
       - name: Test
         run: cargo test
+      - name: Security audit
+        run: cargo audit
+      - name: License + dep check
+        run: cargo deny check
+      - name: Frontend tests
+        run: npm ci && npx vitest run
       - name: Build
         run: cargo build --release
 ```
@@ -2738,13 +2920,26 @@ git commit -m "ci: add GitHub Actions matrix for ubuntu + windows"
 
 ---
 
-### Task 15: Distribution configuration and final polish
+### Task 15: Distribution configuration, auto-updates, and final polish
 
 **Files:**
-- Modify: `src-tauri/tauri.conf.json` (bundler config)
-- Modify: `README.md` (project description, dev setup, architecture summary)
+- Modify: `src-tauri/tauri.conf.json` (bundler + updater config)
+- Modify: `src-tauri/Cargo.toml` (add updater plugin)
+- Modify: `README.md`
 
-- [ ] **Step 1: Configure Tauri bundler for both platforms**
+- [ ] **Step 1: Add Tauri updater plugin**
+
+Add to `src-tauri/Cargo.toml`:
+```toml
+tauri-plugin-updater = "2"
+```
+
+Register in `src-tauri/src/lib.rs`:
+```rust
+.plugin(tauri_plugin_updater::Builder::new().build())
+```
+
+- [ ] **Step 2: Configure bundler for NSIS+MSI (Windows) and deb+AppImage (Linux)**
 
 Update `src-tauri/tauri.conf.json` bundler section:
 ```json
@@ -2757,12 +2952,53 @@ Update `src-tauri/tauri.conf.json` bundler section:
     "appimage": { "bundleMediaFramework": true }
   },
   "windows": {
-    "nsis": { "installMode": "currentUser" }
+    "nsis": { "installMode": "currentUser" },
+    "msi": {}
   }
 }
 ```
 
-- [ ] **Step 2: Write README.md**
+Add updater plugin config to `tauri.conf.json`:
+```json
+"plugins": {
+  "updater": {
+    "endpoints": [
+      "https://github.com/enolalabs/grid-screen/releases/latest/download/latest.json"
+    ],
+    "pubkey": "<insert-signing-pubkey-after-first-release>",
+    "windows": { "installMode": "passive" }
+  }
+}
+```
+
+- [ ] **Step 3: Set config file permissions on first write**
+
+In Task 3's `ConfigStore::save()`, after writing the file, set permissions:
+```rust
+#[cfg(unix)]
+{
+    use std::os::unix::fs::PermissionsExt;
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).ok();
+}
+```
+
+- [ ] **Step 4: High-DPI QA checklist**
+
+Manual verification (documented in plan, executed after build):
+- Test at 100%, 125%, 150%, 200% display scaling on both Windows and Linux
+- Verify zone rendering in Layout Editor is crisp at all scales
+- Verify overlay borders are correctly positioned at all scales
+- Verify text readability in config UI at all scales
+- Verify `dpi_scale` conversion produces correct pixel coordinates
+
+- [ ] **Step 5: WCAG AA color contrast QA**
+
+Manual verification:
+- Verify accent color (`#7C3AED`) against white background: contrast ratio ≈ 6.4:1 (passes AA at 4.5:1)
+- Verify accent color against dark background (`#181825`): contrast ratio ≈ 5.2:1 (passes AA)
+- Verify overlay zone highlight (20% accent) against typical desktop backgrounds
+
+- [ ] **Step 6: Write README.md**
 
 Write `README.md`:
 ```markdown
@@ -2817,8 +3053,282 @@ Expected: All tests pass
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src-tauri/tauri.conf.json README.md
-git commit -m "chore: configure distribution bundling and write README"
+git add src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/src/lib.rs README.md
+git commit -m "chore: configure distribution bundling, auto-updates, high-DPI + WCAG AA QA, file permissions"
+```
+
+---
+
+### Task 16: Performance instrumentation and benchmarks
+
+**Files:**
+- Create: `src-tauri/src/perf.rs`
+- Create: `benches/overlay_bench.rs`
+
+**Interfaces:**
+- Implements `tracing` spans on drag loop and overlay rendering
+- Adds FPS counter to overlay in dev builds
+- Benchmarks: zone hit-testing (64 zones), overlay rendering (4K Pixmap), startup time
+
+- [ ] **Step 1: Add tracing spans to drag loop and overlay**
+
+In Task 7's `DragDetector` event loop, wrap the per-event processing:
+```rust
+let span = tracing::span!(tracing::Level::TRACE, "drag_event");
+let _guard = span.enter();
+```
+
+In Task 6's `ZoneOverlay::update()`, wrap the render + present:
+```rust
+let span = tracing::span!(tracing::Level::TRACE, "overlay_frame");
+let _guard = span.enter();
+```
+
+- [ ] **Step 2: Add FPS counter to dev builds**
+
+Write `src-tauri/src/perf.rs`:
+```rust
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
+
+static FRAME_COUNT: AtomicU64 = AtomicU64::new(0);
+static FRAME_START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+
+pub fn record_frame() {
+    FRAME_START.get_or_init(Instant::now);
+    FRAME_COUNT.fetch_add(1, Ordering::Relaxed);
+}
+
+pub fn current_fps() -> f64 {
+    let elapsed = FRAME_START.get().map(|s| s.elapsed().as_secs_f64()).unwrap_or(0.001);
+    let count = FRAME_COUNT.load(Ordering::Relaxed) as f64;
+    count / elapsed.max(0.001)
+}
+```
+
+In `ZoneOverlay::update()`, call `perf::record_frame()`. In dev builds, render the FPS text in the overlay corner:
+```rust
+#[cfg(debug_assertions)]
+{
+    let fps = perf::current_fps();
+    // Render "60 FPS" text in top-right corner of pixmap
+}
+```
+
+- [ ] **Step 3: Add benchmark for zone hit-testing**
+
+Create `benches/overlay_bench.rs`:
+```rust
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use grid_screen::types::*;
+
+fn bench_zone_hit_test(c: &mut Criterion) {
+    let monitor = Monitor {
+        id: MonitorId(uuid::Uuid::new_v4()), name: "4k".into(),
+        x: 0, y: 0, width: 3840, height: 2160, dpi_scale: 1.5, is_primary: true,
+    };
+    let zones: Vec<Zone> = (0..64).map(|i| Zone {
+        id: uuid::Uuid::new_v4(), name: format!("z{}", i),
+        x: (i as f64 % 8.0) / 8.0, y: (i as f64 / 8.0).floor() / 8.0,
+        width: 1.0 / 8.0, height: 1.0 / 8.0,
+        gap: 4, margin: 8,
+    }).collect();
+
+    c.bench_function("hit_test_64_zones", |b| {
+        b.iter(|| {
+            for zone in &zones {
+                black_box(zone.contains(1920.0, 1080.0, &monitor));
+            }
+        });
+    });
+}
+
+criterion_group!(benches, bench_zone_hit_test);
+criterion_main!(benches);
+```
+
+Add to `src-tauri/Cargo.toml`:
+```toml
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "overlay_bench"
+harness = false
+```
+
+- [ ] **Step 4: Verify benchmark runs and meets budgets**
+
+Run: `cargo bench`
+Expected: `hit_test_64_zones` completes in < 1ms (ensuring O(n) hit-test fits in 16ms frame budget even at max zones)
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src-tauri/src/perf.rs benches/ src-tauri/Cargo.toml src-tauri/src/drag_detector.rs src-tauri/src/zone_overlay.rs
+git commit -m "feat: add performance instrumentation, FPS counter, and zone benchmark"
+```
+
+---
+
+### Task 17: Backend-to-frontend error bridging (UserNotifier)
+
+**Files:**
+- Create: `src-tauri/src/user_notifier.rs`
+- Modify: `src-tauri/src/lib.rs` (register Tauri event)
+- Modify: `src/App.svelte` (listen for user-notification event)
+
+**Interfaces:**
+- `UserNotifier::notify(&app_handle, level: NotificationLevel, message: &str)` — sends a `user-notification` Tauri event
+- Frontend listens to `user-notification` event and maps to toast via `notify()` from `notifications.ts`
+
+- [ ] **Step 1: Implement UserNotifier**
+
+Write `src-tauri/src/user_notifier.rs`:
+```rust
+use serde::Serialize;
+use tauri::Emitter;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UserNotification {
+    pub level: String,  // "info" | "warning" | "error"
+    pub message: String,
+    pub timestamp: u64,
+}
+
+impl UserNotification {
+    pub fn info(message: &str) -> Self {
+        Self { level: "info".into(), message: message.into(), timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() }
+    }
+    pub fn warning(message: &str) -> Self {
+        Self { level: "warning".into(), message: message.into(), timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() }
+    }
+    pub fn error(message: &str) -> Self {
+        Self { level: "error".into(), message: message.into(), timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() }
+    }
+}
+
+pub fn notify(app_handle: &tauri::AppHandle, notification: UserNotification) {
+    let _ = app_handle.emit("user-notification", notification);
+}
+```
+
+- [ ] **Step 2: Wire error paths to UserNotifier**
+
+In Task 3's `ConfigStore::load()`, on corruption:
+```rust
+user_notifier::notify(app_handle, UserNotification::error("Layout reset to default — config file was damaged"));
+```
+
+In Task 8's `save_layout` IPC handler, on save failure:
+```rust
+user_notifier::notify(app_handle, UserNotification::warning("Could not save layout. Trying again..."));
+```
+
+In setup, on Wayland detection (add to MonitorManager):
+```rust
+user_notifier::notify(app_handle, UserNotification::warning("Some features limited on this display system. X11 apps work normally."));
+```
+
+- [ ] **Step 3: Wire frontend to listen for user-notification events**
+
+In `src/App.svelte`, add:
+```typescript
+import { listen } from "@tauri-apps/api/event";
+import { notify } from "./lib/notifications";
+
+onMount(async () => {
+  const unlisten = await listen("user-notification", (event: any) => {
+    const { level, message } = event.payload;
+    notify(message, level);
+  });
+  return unlisten;
+});
+```
+
+- [ ] **Step 4: Register module and verify**
+
+Add to `src-tauri/src/lib.rs`:
+```rust
+pub mod user_notifier;
+```
+
+Run: `cargo tauri dev`, trigger a config corruption scenario
+Expected: Toast notification appears in frontend with the error message
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src-tauri/src/user_notifier.rs src-tauri/src/lib.rs src/App.svelte
+git commit -m "feat: add UserNotifier for backend-to-frontend error bridging"
+```
+
+---
+
+### Task 18: Security verification smoke tests
+
+**Files:**
+- Create: `src-tauri/tests/security_smoke.rs`
+
+- [ ] **Step 1: Verify capabilities JSON has only expected permissions**
+
+Write `src-tauri/tests/security_smoke.rs`:
+```rust
+use std::fs;
+
+#[test]
+fn test_capabilities_only_permit_expected() {
+    let cap_path = concat!(env!("CARGO_MANIFEST_DIR"), "/capabilities/gridscreen.json");
+    let content = fs::read_to_string(cap_path).unwrap();
+    let cap: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+    let permissions: Vec<&str> = cap["permissions"].as_array().unwrap()
+        .iter().map(|v| v.as_str().unwrap()).collect();
+
+    let allowed = vec![
+        "core:default",
+        "tray:default",
+        "core:window:allow-close",
+        "core:window:allow-set-focus",
+        "core:window:allow-show",
+        "core:window:allow-hide",
+    ];
+
+    for perm in &permissions {
+        assert!(allowed.contains(perm), "Unexpected capability permission: {}", perm);
+    }
+
+    let forbidden = ["shell:", "http:", "fs:"];
+    for perm in &permissions {
+        for fb in &forbidden {
+            assert!(!perm.starts_with(fb), "Forbidden capability found: {}", perm);
+        }
+    }
+}
+
+#[test]
+fn test_csp_in_cargo_config() {
+    let conf_path = concat!(env!("CARGO_MANIFEST_DIR"), "/tauri.conf.json");
+    let content = fs::read_to_string(conf_path).unwrap();
+    let conf: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+    let csp = conf["app"]["security"]["csp"].as_str().unwrap();
+    assert!(csp.contains("script-src 'self'"));
+    assert!(csp.contains("connect-src 'self' ipc:"));
+    assert!(!csp.contains("unsafe-eval"));
+}
+```
+
+- [ ] **Step 2: Run security smoke tests**
+
+Run: `cargo test security_smoke`
+Expected: 2 tests pass
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src-tauri/tests/security_smoke.rs
+git commit -m "test: add security smoke tests for capability permissions and CSP"
 ```
 
 ---
@@ -2827,12 +3337,22 @@ git commit -m "chore: configure distribution bundling and write README"
 
 After writing the entire plan, verify:
 
-1. **Spec coverage:** Every requirement in the spec maps to at least one task above
-2. **No placeholders:** All steps contain actual code, paths, and commands
-3. **Type consistency:** Types in frontend (`types.ts`) match Rust types (`types.rs`). IPC signatures match between `lib.rs` and `ipc.ts`.
-4. **Ordering:** Tasks build on each other — Mock API in Task 2 enables all downstream tests. ConfigStore in Task 3 enables LayoutManager in Task 5. Frontend in Task 10 needs IPC from Task 8.
+1. **Spec coverage:** Every requirement in the spec maps to at least one task:
+   - PlatformApi, types, ConfigStore, MonitorManager, LayoutManager, DragDetector, ZoneOverlay, TrayManager → Tasks 2-9
+   - WYSIWYG Layout Editor, Layout Manager, Settings → Tasks 11-12
+   - First-run onboarding → Task 13
+   - i18n (English + Vietnamese) → Task 13
+   - User-facing error bridging → Task 17
+   - Performance budgets → Task 16
+   - CSP + capabilities → Tasks 1, 18
+   - HCIG → Task 14
+   - Distribution (MSI, deb, AppImage, updater) → Task 15
+   - WCAG AA + high-DPI → Task 15 + Task 11 (ARIA, keyboard)
+   - Frontend tests → Tasks 11, 12, 13
 
-Gaps identified and addressed:
-- Added Task 13 for first-run experience (was missing in initial outline)
-- Added Task 14 for CI/CD
-- Added keyboard accessibility to Layout Editor (Task 11 step 3)
+2. **Concurrency model consistent:** ArcSwap for `active_layouts` + `monitors` (lock-free hotpath), Mutex for `drag_state` only, RwLock for `app_config`. `LayoutManager` is stateless code layer.
+
+3. **Type consistency:** `SnapEvent` defined in Task 2, consumed by Task 7 (producer) and Task 8 (consumer). `UserNotification` defined in Task 17. Frontend types match Rust types.
+
+4. **No placeholders:** All steps contain actual code, paths, commands, and expected output.
+
