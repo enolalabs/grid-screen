@@ -24,6 +24,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]
 name = "overlay_bench"
+path = "../benches/overlay_bench.rs"
 harness = false
 
 [build-dependencies]
