@@ -1,52 +1,52 @@
 # Grid Screen
 
-Quản lý vùng cửa sổ đa nền tảng. Kéo thả cửa sổ vào các vùng (zone) đã định nghĩa sẵn để snap vào vị trí tức thì.
+Cross-platform window zone management. Drag windows into predefined zones for instant snap-to-position.
 
-**Nền tảng:** Linux (X11) · Windows
+**Platforms:** Linux (X11) · Windows
 
 [![CI](https://github.com/enolalabs/grid-screen/actions/workflows/ci.yml/badge.svg)](https://github.com/enolalabs/grid-screen/actions/workflows/ci.yml)
 
 ---
 
-## Mục lục
+## Table of Contents
 
-- [Tính năng](#tính-năng)
-- [Cài đặt](#cài-đặt)
-- [Sử dụng](#sử-dụng)
-- [Phát triển](#phát-triển)
-- [Kiến trúc](#kiến-trúc)
-- [Cấu hình](#cấu-hình)
-- [Build & phân phối](#build--phân-phối)
-- [Kiểm thử](#kiểm-thử)
-- [Đóng góp](#đóng-góp)
-
----
-
-## Tính năng
-
-| Tính năng | Mô tả |
-|-----------|-------|
-| **Snap cửa sổ** | Kéo cửa sổ vào vùng đã định nghĩa → cửa sổ tự động snap vào vị trí |
-| **Editor WYSIWYG** | Kéo thả trực quan để tạo/chỉnh sửa vùng trên từng màn hình, hỗ trợ grid snapping 12 cột |
-| **Đa màn hình** | Hỗ trợ hotplug — tự động phát hiện màn hình mới/cũ, layout riêng cho từng màn hình |
-| **System tray** | Chạy ngầm dưới system tray với menu: Configure / Pause / Quit |
-| **Phản hồi trực quan** | Highlight vùng khi kéo cửa sổ + ghost preview vị trí sẽ snap đến |
-| **Đa ngôn ngữ** | Giao diện tiếng Anh + tiếng Việt (svelte-i18n) |
-| **Hướng dẫn lần đầu** | Overlay onboarding khi chạy lần đầu, hướng dẫn cách tạo vùng và snap |
-| **Thông báo lỗi** | Toast notification khi có lỗi từ backend (hỏng file config, lỗi save...) |
-| **Tự động cập nhật** | Tauri updater — tự động tải bản mới từ GitHub Releases |
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Development](#development)
+- [Architecture](#architecture)
+- [Configuration](#configuration)
+- [Build & Distribution](#build--distribution)
+- [Testing](#testing)
+- [Contributing](#contributing)
 
 ---
 
-## Cài đặt
+## Features
 
-Grid Screen hỗ trợ 2 cách cài đặt: **cài nhanh bằng script** (khuyên dùng) hoặc **build từ source**.
+| Feature | Description |
+|---------|-------------|
+| **Window Snap** | Drag any window into a zone → auto snap to position |
+| **WYSIWYG Editor** | Visual drag-and-drop zone editor with 12-column grid snapping |
+| **Multi-Monitor** | Hotplug-aware — auto detects new/removed displays, per-monitor layouts |
+| **System Tray** | Runs in tray with menu: Configure / Pause / View Logs / Quit |
+| **Visual Feedback** | Zone highlight + ghost preview when dragging a window |
+| **Multilingual** | English + Vietnamese UI (svelte-i18n) |
+| **First-Run Guide** | Onboarding overlay on first launch |
+| **Error Notifications** | Toast notifications for backend errors (config corruption, save failures...) |
+| **Auto Updates** | Tauri updater — automatically fetches new versions from GitHub Releases |
 
 ---
 
-### Cách 1: Cài nhanh bằng script (khuyên dùng)
+## Installation
 
-Script tự động phát hiện hệ điều hành, cài đặt dependencies, build và cấu hình autostart.
+Grid Screen supports two installation methods: **one-command script** (recommended) or **build from source**.
+
+---
+
+### Method 1: One-Command Script (Recommended)
+
+The script automatically detects your OS, installs dependencies, builds, and configures autostart.
 
 #### Linux
 
@@ -54,27 +54,27 @@ Script tự động phát hiện hệ điều hành, cài đặt dependencies, b
 curl -fsSL https://raw.githubusercontent.com/enolalabs/grid-screen/main/scripts/install.sh | bash
 ```
 
-Script sẽ tự động thực hiện các bước:
-1. Kiểm tra và cài đặt system dependencies (libgtk-3, libwebkit2gtk, libx11...)
-2. Cài đặt Rust (nếu chưa có, qua rustup)
-3. Clone repository về `~/.local/share/grid-screen`
-4. Build release binary (`cargo build --release`)
-5. Copy binary vào `~/.local/bin/grid-screen`
-6. Tạo file `.desktop` trong `~/.config/autostart/` để tự động chạy cùng hệ thống
-7. Tạo desktop entry trong `~/.local/share/applications/` để hiển thị trong menu ứng dụng
+The script performs these steps automatically:
+1. Detects and installs system dependencies (libgtk-3, libwebkit2gtk, libx11...)
+2. Installs Rust (via rustup, if missing)
+3. Clones the repository to `~/.local/share/grid-screen`
+4. Builds the release binary (`cargo build --release`)
+5. Copies the binary to `~/.local/bin/grid-screen`
+6. Creates a `.desktop` file in `~/.config/autostart/` for auto-launch
+7. Creates a desktop entry in `~/.local/share/applications/` for app menu
 
-Sau khi cài xong, khởi động lại (hoặc chạy `grid-screen` trực tiếp từ terminal) để bắt đầu sử dụng.
+After installation, restart your session (or run `grid-screen` from terminal) to begin.
 
-**Tùy chọn cài đặt nâng cao:**
+**Advanced install options:**
 
 ```bash
-# Cài vào thư mục tùy chỉnh
+# Custom install directory
 INSTALL_DIR=/opt/grid-screen bash <(curl -fsSL https://raw.githubusercontent.com/enolalabs/grid-screen/main/scripts/install.sh)
 
-# Cài bản development (có debug log)
+# Development build (with debug logging)
 INSTALL_MODE=dev bash <(curl -fsSL https://raw.githubusercontent.com/enolalabs/grid-screen/main/scripts/install.sh)
 
-# Chỉ cài dependencies, không build (dành cho developer)
+# Dependencies only, skip build (for developers)
 INSTALL_MODE=deps bash <(curl -fsSL https://raw.githubusercontent.com/enolalabs/grid-screen/main/scripts/install.sh)
 ```
 
@@ -84,30 +84,30 @@ INSTALL_MODE=deps bash <(curl -fsSL https://raw.githubusercontent.com/enolalabs/
 irm https://raw.githubusercontent.com/enolalabs/grid-screen/main/scripts/install.ps1 | iex
 ```
 
-Script PowerShell sẽ:
-1. Cài đặt Rust qua rustup-init.exe (nếu chưa có)
-2. Cài đặt Node.js qua winget (nếu chưa có)
-3. Clone repository về `%LOCALAPPDATA%\grid-screen`
-4. Build release binary
-5. Copy vào `%LOCALAPPDATA%\Programs\grid-screen\`
-6. Thêm vào registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` để autostart
+The PowerShell script will:
+1. Install Rust via rustup-init.exe (if missing)
+2. Install Node.js via winget (if missing)
+3. Clone the repository to `%LOCALAPPDATA%\grid-screen`
+4. Build the release binary
+5. Copy to `%LOCALAPPDATA%\Programs\grid-screen\`
+6. Add to registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` for autostart
 
 ---
 
-### Cách 2: Build từ source
+### Method 2: Build from Source
 
-Dành cho developer muốn tùy chỉnh hoặc đóng góp code.
+For developers who want to customize or contribute.
 
-#### Yêu cầu hệ thống
+#### System Requirements
 
-| Thành phần | Phiên bản |
-|------------|-----------|
+| Component | Version |
+|-----------|---------|
 | Rust | stable (1.75+) |
 | Node.js | 20+ |
 | npm | 9+ |
 | Git | 2.0+ |
 
-**Linux — cài thư viện hệ thống:**
+**Linux — system libraries:**
 
 ```bash
 # Ubuntu / Debian
@@ -133,38 +133,32 @@ sudo pacman -S --needed \
   pkg-config openssl
 ```
 
-**Windows:** Không cần thư viện bổ sung. Đảm bảo đã cài [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) với component "Desktop development with C++".
+**Windows:** No extra libraries needed. Ensure [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) are installed with the "Desktop development with C++" workload.
 
-#### Clone & build
+#### Clone & Build
 
 ```bash
 git clone https://github.com/enolalabs/grid-screen.git
 cd grid-screen
 
-# Cài frontend dependencies
+# Install frontend dependencies
 npm install
 
 # Build
 cargo tauri build
 ```
 
-Binary sẽ nằm ở:
+Output binary location:
 - **Linux:** `src-tauri/target/release/grid-screen`
 - **Windows:** `src-tauri/target/release/grid-screen.exe`
 
-#### Chạy development
+#### Development Mode
 
 ```bash
 cargo tauri dev      # Hot-reload frontend + backend
 ```
 
-#### Build release
-
-```bash
-cargo tauri build --release
-```
-
-#### Cài đặt thủ công binary đã build
+#### Manual Binary Install
 
 ```bash
 # Linux
@@ -173,104 +167,104 @@ mkdir -p ~/.config/autostart
 cp assets/grid-screen.desktop ~/.config/autostart/
 
 # Windows
-# Copy grid-screen.exe vào thư mục bất kỳ, tạo shortcut trong Startup folder
+# Copy grid-screen.exe anywhere, create shortcut in Startup folder
 # (Win+R → shell:startup → paste shortcut)
 ```
 
 ---
 
-### Gỡ cài đặt
+### Uninstall
 
 ```bash
-# Linux — nếu cài bằng script
+# Linux — if installed via script
 ~/.local/share/grid-screen/scripts/uninstall.sh
 
-# Linux — nếu cài thủ công
+# Linux — if installed manually
 rm /usr/local/bin/grid-screen
 rm ~/.config/autostart/grid-screen.desktop
 rm -rf ~/.config/grid-screen
 
-# Windows — nếu cài bằng script
-# Chạy "Uninstall Grid Screen" từ Start Menu
+# Windows — if installed via script
+# Run "Uninstall Grid Screen" from Start Menu
 
-# Windows — nếu cài thủ công
-# Xóa binary + shortcut trong Startup folder + registry key
+# Windows — if installed manually
+# Remove binary + Startup shortcut + registry key
 reg delete HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v grid-screen
 rmdir /s %LOCALAPPDATA%\grid-screen
 ```
 
 ---
 
-## Sử dụng
+## Usage
 
-### Lần đầu khởi động
+### First Launch
 
-Sau khi cài đặt, Grid Screen chạy ngầm dưới system tray.
+After installation, Grid Screen runs in the system tray.
 
-1. **Click chuột phải** vào icon Grid Screen trên system tray
-2. Chọn **Configure** để mở cửa sổ cấu hình
-3. Một overlay **hướng dẫn** sẽ hiện ra — nhấn **Got it** để bắt đầu
+1. **Right-click** the Grid Screen tray icon
+2. Select **Configure** to open the configuration window
+3. An **onboarding overlay** will appear — click **Got it** to begin
 
-### System tray menu
+### System Tray Menu
 
-| Mục | Chức năng |
-|-----|-----------|
-| **Configure** | Mở cửa sổ cấu hình (Editor, Layouts, Settings) |
-| **Pause / Resume** | Tạm dừng / bật lại chức năng snap cửa sổ |
-| **View Logs** | Mở file log để debug |
-| **Quit** | Thoát hoàn toàn Grid Screen |
+| Item | Function |
+|------|----------|
+| **Configure** | Open config window (Editor, Layouts, Settings) |
+| **Pause / Resume** | Toggle window snap functionality |
+| **View Logs** | Open log file for debugging |
+| **Quit** | Exit Grid Screen completely |
 
-### Tạo layout đầu tiên
+### Creating Your First Layout
 
-1. Mở tab **Editor** trong cửa sổ cấu hình
-2. Bạn sẽ thấy danh sách các màn hình đang kết nối, mỗi màn hình hiển thị dưới dạng canvas thu nhỏ
-3. **Click vào canvas** của màn hình để tạo zone mới (zone mặc định chiếm 30% diện tích)
-4. **Thao tác với zone:**
-   - **Double-click** vào zone → đổi tên
-   - **Right-click** vào zone → hiện dialog xác nhận xóa
-   - **Arrow keys** → di chuyển zone (Shift để di chuyển chậm hơn)
-   - **Ctrl + Arrow keys** → thay đổi kích thước zone
-   - **Delete** → xóa zone đang focus
-5. Zone tự động **snap vào lưới 12 cột** khi tạo và di chuyển
-6. Nhấn **Apply Live** để áp dụng layout ngay lập tức — bắt đầu kéo cửa sổ vào zone
-7. Nhấn **Save** để lưu layout với tên, có thể dùng lại sau
+1. Open the **Editor** tab in the config window
+2. Each connected display appears as a scaled-down canvas
+3. **Click on a monitor canvas** to create a new zone (defaults to 30% area)
+4. **Zone operations:**
+   - **Double-click** a zone → rename
+   - **Right-click** a zone → delete confirmation dialog
+   - **Arrow keys** → move zone (Shift for fine movement)
+   - **Ctrl + Arrow keys** → resize zone
+   - **Delete** key → delete focused zone
+5. Zones automatically **snap to a 12-column grid** on create and move
+6. Click **Apply Live** to activate the layout immediately — start dragging windows
+7. Click **Save** to persist the layout with a name for later reuse
 
-### Kéo thả cửa sổ
+### Dragging Windows
 
-Sau khi layout được áp dụng:
+Once a layout is applied:
 
-1. **Kéo cửa sổ bất kỳ** (File Explorer, Terminal, Browser...)
-2. Khi kéo qua một zone, zone đó sẽ **highlight** lên (viền tím 2px + nền mờ 20%)
-3. Một **ghost preview** hiển thị vị trí cửa sổ sẽ snap đến
-4. **Thả chuột** khi cursor nằm trong zone → cửa sổ tự động snap vào vị trí
-5. Nếu thả chuột ngoài tất cả zone → cửa sổ giữ nguyên vị trí, không thay đổi
+1. **Drag any window** (File Explorer, Terminal, Browser...)
+2. As you drag over a zone, it **highlights** (2px purple border + 20% fill)
+3. A **ghost preview** shows where the window will snap
+4. **Release the mouse** when the cursor is inside a zone → window auto-snaps
+5. If you release outside all zones → the window stays where it is, unchanged
 
-### Quản lý layout
+### Managing Layouts
 
-- Tab **Layouts**: xem danh sách layout đã lưu
-  - **Set Default** — đặt layout làm mặc định (tự động áp dụng khi khởi động)
-  - **Delete** — xóa layout
-- Tab **Settings**:
-  - **Auto-start** — tự động chạy cùng hệ thống
-  - **Default gap** — khoảng cách mặc định giữa các zone (0–100px)
-  - **Default margin** — lề mặc định từ cạnh màn hình (0–100px)
-  - **Accent color** — màu highlight zone và viền
+- **Layouts** tab: view saved layouts
+  - **Set Default** — make this layout load automatically on startup
+  - **Delete** — remove the layout
+- **Settings** tab:
+  - **Auto-start** — launch with system
+  - **Default gap** — spacing between adjacent zones (0–100px)
+  - **Default margin** — offset from screen edges (0–100px)
+  - **Accent color** — zone highlight and border color
   - **Language** — English / Tiếng Việt
 
-### Phím tắt
+### Keyboard Shortcuts
 
-| Phím | Chế độ | Tác dụng |
-|------|--------|----------|
-| **Arrow keys** | Editor — zone đang focus | Di chuyển zone |
-| **Shift + Arrow** | Editor — zone đang focus | Di chuyển chậm (1% màn hình) |
-| **Ctrl + Arrow** | Editor — zone đang focus | Thay đổi kích thước zone |
-| **Delete** | Editor — zone đang focus | Xóa zone |
+| Key | Mode | Action |
+|-----|------|--------|
+| **Arrow keys** | Editor — focused zone | Move zone |
+| **Shift + Arrow** | Editor — focused zone | Fine move (1% of screen) |
+| **Ctrl + Arrow** | Editor — focused zone | Resize zone |
+| **Delete** | Editor — focused zone | Delete zone |
 
 ---
 
-## Phát triển
+## Development
 
-### Cấu trúc thư mục
+### Directory Structure
 
 ```
 grid-screen/
@@ -295,16 +289,16 @@ grid-screen/
 │       ├── app_state.rs          # AppState with ArcSwap/RwLock/Mutex
 │       ├── config_store.rs       # JSON config read/write + validation + backup rotation
 │       ├── monitor_manager.rs    # Event-driven monitor detection + 30s safety-net polling
-│       ├── layout_manager.rs     # Fractional coordinate math, zone ops
+│       ├── layout_manager.rs     # Fractional coordinate math, zone operations
 │       ├── drag_detector.rs      # Event-driven drag processor (blocking mpsc)
 │       ├── zone_overlay.rs       # Transparent overlay rendering (tiny-skia)
 │       ├── user_notifier.rs      # Backend → frontend error bridging
 │       ├── perf.rs               # Frame counter & FPS stats
 │       └── platform/
 │           ├── mod.rs            # PlatformApi trait + conditional exports
-│           ├── mock.rs           # Mock implementation (cho testing)
+│           ├── mock.rs           # Mock implementation (for testing)
 │           ├── linux.rs          # X11 implementation (x11rb, RandR, Xinerama)
-│           └── windows.rs        # Windows stub (TODO: EnumDisplayMonitors)
+│           └── windows.rs        # Windows implementation (EnumDisplayMonitors, SetWindowPos...)
 ├── src/                          # Frontend (Svelte 5 + TypeScript)
 │   ├── main.ts                   # App mount point
 │   ├── App.svelte                # App shell (tabs, onboarding, toast)
@@ -326,69 +320,73 @@ grid-screen/
 │           └── LayoutEditor.test.ts  # Component + keyboard nav tests
 ├── benches/
 │   └── overlay_bench.rs          # Criterion benchmark (zone hit-test 64 zones)
+├── scripts/
+│   ├── install.sh                # Linux one-command installer
+│   ├── install.ps1               # Windows one-command installer
+│   └── uninstall.sh              # Linux uninstaller
 ├── .github/workflows/
 │   └── ci.yml                    # CI matrix: ubuntu-latest + windows-latest
 ├── vitest.config.ts              # Vitest config (jsdom environment)
-├── package.json                  # Node deps
+├── package.json                  # Node dependencies
 └── svelte.config.js              # Svelte compiler config
 ```
 
-### Chạy development
+### Dev Commands
 
 ```bash
-# Cài dependencies
+# Install dependencies
 npm install
 
-# Chạy Tauri dev mode (hot-reload frontend + backend)
+# Run Tauri dev mode (hot-reload frontend + backend)
 cargo tauri dev
 ```
 
-### Các lệnh hữu ích
+### Useful Commands
 
 ```bash
 # Backend
-cargo fmt --check          # Kiểm tra format Rust
+cargo fmt --check          # Check Rust formatting
 cargo clippy -- -D warnings # Lint Rust
-cargo test                  # Chạy toàn bộ test Rust
-cargo bench                 # Chạy benchmark
-cargo build --release       # Build production
+cargo test                  # Run all Rust tests
+cargo bench                 # Run benchmarks
+cargo build --release       # Production build
 
 # Frontend
-npx vitest run              # Chạy test component
-npm run build               # Build Svelte production
+npx vitest run              # Run component tests
+npm run build               # Production Svelte build
 
 # Security
-cargo audit                 # Kiểm tra CVE trong dependencies
-cargo deny check            # Kiểm tra license + banned deps
+cargo audit                 # Check dependency CVEs
+cargo deny check            # Check licenses + banned deps
 ```
 
 ---
 
-## Kiến trúc
+## Architecture
 
-### Mô hình luồng (Threading)
+### Threading Model
 
-Grid Screen chạy theo mô hình 4-thread:
+Grid Screen uses a 4-thread model:
 
-| Thread | Vai trò | Cơ chế đồng bộ |
-|--------|---------|----------------|
+| Thread | Role | Sync Mechanism |
+|--------|------|----------------|
 | **Main** | Tauri runtime + system tray + IPC | — |
 | **Platform event loop** | X11/Win32 event polling (window move, display change) | `mpsc::channel` → DragDetector |
-| **Drag processor** | Nhận event, hit-test zone, gửi snap, điều khiển overlay | Blocking `mpsc::recv()` |
-| **Overlay renderer** | Vẽ zone highlight + ghost rect qua tiny-skia | Gọi từ DragDetector callbacks |
+| **Drag processor** | Receive events, hit-test zones, send snaps, control overlay | Blocking `mpsc::recv()` |
+| **Overlay renderer** | Draw zone highlights + ghost rects via tiny-skia | Called from DragDetector callbacks |
 
-### Truy cập state
+### State Access
 
-| Dữ liệu | Cơ chế | Lý do |
-|---------|--------|------|
-| `monitors` | `ArcSwap<Vec<Monitor>>` | Lock-free read — hotpath |
-| `active_layouts` | `ArcSwap<Vec<Layout>>` | Lock-free read — hotpath |
-| `drag_state` | `Mutex<Option<DragState>>` | Chỉ truy cập từ DragDetector thread |
-| `app_config` | `RwLock<AppConfig>` | Nhiều reader, ít writer (settings page) |
+| Data | Mechanism | Rationale |
+|------|-----------|-----------|
+| `monitors` | `ArcSwap<Vec<Monitor>>` | Lock-free reads — hotpath |
+| `active_layouts` | `ArcSwap<Vec<Layout>>` | Lock-free reads — hotpath |
+| `drag_state` | `Mutex<Option<DragState>>` | Accessed only from DragDetector thread |
+| `app_config` | `RwLock<AppConfig>` | Many readers, few writers (settings page) |
 
 ### Platform API
 
-Backend sử dụng trait `PlatformApi` để trừu tượng hóa các API của hệ điều hành:
+The backend uses a `PlatformApi` trait to abstract OS-level APIs:
 
 ```rust
 pub trait PlatformApi: Send + Sync {
@@ -406,34 +404,34 @@ pub trait PlatformApi: Send + Sync {
 }
 ```
 
-| Implementation | Nền tảng | Thư viện |
-|----------------|----------|----------|
+| Implementation | Platform | Library |
+|----------------|----------|---------|
 | `LinuxPlatformApi` | X11 | `x11rb` (RandR, Xinerama, Shape, ConfigureWindow) |
 | `WindowsPlatformApi` | Windows | `windows` crate (EnumDisplayMonitors, SetWindowPos...) |
-| `MockPlatformApi` | Testing | Không phụ thuộc OS, dùng trong unit/integration test |
+| `MockPlatformApi` | Testing | OS-independent, used in unit/integration tests |
 
-### Luồng xử lý drag
-
-```
-Người dùng kéo cửa sổ
-  → Platform API bắt WindowMoveEvent
-    → DragDetector nhận event qua blocking mpsc::recv()
-      → DragStart: lấy vị trí cursor, tìm monitor, hiện overlay
-      → DragMove: hit-test zone (O(n), max 64 zones), cập nhật highlight + ghost
-      → DragEnd: nếu cursor trong zone → gửi SnapEvent
-        → Snap consumer thread gọi platform_api.move_window()
-```
-
-### Tọa độ fractional
-
-Tất cả zone được lưu dưới dạng tọa độ phân số (0.0–1.0) so với kích thước màn hình:
+### Drag Flow
 
 ```
-zone.x = 0.0, zone.width = 0.5  → chiếm nửa trái màn hình (mọi độ phân giải)
-zone.y = 0.5, zone.height = 0.5 → chiếm nửa dưới màn hình
+User drags a window
+  → Platform API captures WindowMoveEvent
+    → DragDetector receives event via blocking mpsc::recv()
+      → DragStart: get cursor position, find monitor, show overlay
+      → DragMove: hit-test zones (O(n), max 64), update highlight + ghost
+      → DragEnd: if cursor is in a zone → send SnapEvent
+        → Snap consumer thread calls platform_api.move_window()
 ```
 
-Chuyển đổi sang pixel khi cần sử dụng tại runtime:
+### Fractional Coordinates
+
+All zones are stored as fractional coordinates (0.0–1.0) relative to the monitor dimensions:
+
+```
+zone.x = 0.0, zone.width = 0.5  → left half of the screen (any resolution)
+zone.y = 0.5, zone.height = 0.5 → bottom half of the screen
+```
+
+Converted to pixels at runtime:
 ```
 pixel_x = monitor.x + zone.x * monitor.width + margin + gap/2
 pixel_w = zone.width * monitor.width - 2*margin - gap
@@ -441,11 +439,11 @@ pixel_w = zone.width * monitor.width - 2*margin - gap
 
 ---
 
-## Cấu hình
+## Configuration
 
-### File config
+### Config File
 
-Grid Screen lưu cấu hình tại `$XDG_CONFIG_HOME/grid-screen/layouts.json` (Linux) hoặc `%APPDATA%/grid-screen/layouts.json` (Windows).
+Grid Screen stores configuration at `$XDG_CONFIG_HOME/grid-screen/layouts.json` (Linux) or `%APPDATA%/grid-screen/layouts.json` (Windows).
 
 ```json
 {
@@ -473,7 +471,8 @@ Grid Screen lưu cấu hình tại `$XDG_CONFIG_HOME/grid-screen/layouts.json` (
     "default_margin": 8,
     "accent_color": "#7C3AED",
     "language": "en",
-    "first_run_completed": false
+    "first_run_completed": false,
+    "default_layout_id": null
   }
 }
 ```
@@ -481,33 +480,33 @@ Grid Screen lưu cấu hình tại `$XDG_CONFIG_HOME/grid-screen/layouts.json` (
 ### Validation
 
 - Schema version check
-- Tên zone/layout: 1–64 ký tự
-- Tối đa 64 zone / màn hình
-- Tọa độ trong khoảng [0.0, 1.0]
-- Zone không được chồng lấn
-- HTML escape tên zone trước khi lưu
-- Backup rotation: giữ 5 file `.bak.N` gần nhất
-- Atomic write: ghi ra file `.tmp` → verify → rename
+- Zone/layout names: 1–64 characters
+- Max 64 zones per monitor
+- Coordinates in [0.0, 1.0] range
+- No zone overlaps
+- HTML escape zone names before saving (XSS prevention)
+- Backup rotation: keeps 5 most recent `.bak.N` files
+- Atomic write: write to `.tmp` → verify → rename
 
 ### Logging
 
-Log lưu tại `$XDG_CONFIG_HOME/grid-screen/grid-screen.log`:
-- Rotation hàng ngày (daily)
-- Tối đa 3 file, mỗi file ≤ 1MB
-- Panic hook tự động ghi backtrace vào log
+Logs stored at `$XDG_CONFIG_HOME/grid-screen/grid-screen.log`:
+- Daily rotation
+- Max 3 files, each ≤ 1MB
+- Panic hook automatically writes backtrace to log
 
 ---
 
-## Build & phân phối
+## Build & Distribution
 
-### Build local
+### Local Build
 
 ```bash
 npm install
 cargo tauri build
 ```
 
-### Build CI
+### CI Pipeline
 
 GitHub Actions (`ubuntu-latest` + `windows-latest` matrix):
 1. `cargo fmt --check`
@@ -518,78 +517,78 @@ GitHub Actions (`ubuntu-latest` + `windows-latest` matrix):
 6. `npm ci && npx vitest run`
 7. `cargo build --release`
 
-### Định dạng phân phối
+### Distribution Formats
 
-| Nền tảng | Định dạng |
-|----------|-----------|
+| Platform | Format |
+|----------|--------|
 | Linux | `.deb` (Debian/Ubuntu), `.AppImage` (universal) |
 | Windows | `.msi` (system-wide), NSIS `.exe` (per-user) |
 
-### Auto-update
+### Auto-Update
 
-Cấu hình updater sử dụng Tauri updater plugin, kiểm tra bản mới từ GitHub Releases:
+Uses the Tauri updater plugin, checking GitHub Releases:
 
 ```
 GET https://github.com/enolalabs/grid-screen/releases/latest/download/latest.json
 ```
 
-### Bảo mật
+### Security
 
-- **Capabilities**: deny-by-default — chỉ cấp `core:default`, `tray:default`, và các quyền window cơ bản. Không `shell:`, `http:`, `fs:`.
+- **Capabilities**: deny-by-default — only `core:default`, `tray:default`, and basic window permissions. No `shell:`, `http:`, `fs:`.
 - **CSP**: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: https://ipc.localhost; img-src 'self' data:;`
-- **File permissions**: config file được set `0o600` (chỉ owner đọc/ghi) trên Linux
-- **HTML escaping**: tên zone được escape trước khi lưu (ngăn stored XSS)
-- **Smoke tests**: `security_smoke.rs` tự động kiểm tra capabilities và CSP
+- **File permissions**: config file set to `0o600` (owner read/write only) on Linux
+- **HTML escaping**: zone names escaped before storage (XSS prevention)
+- **Smoke tests**: `security_smoke.rs` verifies capabilities and CSP at commit time
 
 ---
 
-## Kiểm thử
+## Testing
 
-### Unit & Integration tests (Rust)
+### Unit & Integration Tests (Rust)
 
 ```bash
-cargo test                                    # Tất cả test
-cargo test config_store                       # Test ConfigStore (6 tests)
-cargo test monitor_manager                    # Test MonitorManager (2 tests)
-cargo test layout_manager                     # Test LayoutManager (3 tests)
-cargo test drag_detector                      # Test DragDetector (2 tests)
-cargo test zone_overlay                       # Test ZoneOverlay (3 tests)
-cargo test security_smoke                     # Test security (2 tests)
+cargo test                                    # All tests
+cargo test config_store                       # ConfigStore (6 tests)
+cargo test monitor_manager                    # MonitorManager (2 tests)
+cargo test layout_manager                     # LayoutManager (3 tests)
+cargo test drag_detector                      # DragDetector (2 tests)
+cargo test zone_overlay                       # ZoneOverlay (3 tests)
+cargo test security_smoke                     # Security (2 tests)
 ```
 
-### Component tests (Svelte)
+### Component Tests (Svelte)
 
 ```bash
 npx vitest run                                # LayoutEditor component + keyboard a11y
 ```
 
-### Benchmark
+### Benchmarks
 
 ```bash
 cargo bench                                   # Zone hit-test 64 zones @ 4K
 ```
 
-Budget: `hit_test_64_zones` < 1ms (đảm bảo fit trong 16ms frame budget kể cả ở max zones).
+Budget: `hit_test_64_zones` < 1ms (fits within 16ms frame budget even at max zones).
 
 ---
 
-## Đóng góp
+## Contributing
 
-1. Fork repository
-2. Tạo branch: `git checkout -b feature/ten-tinh-nang`
+1. Fork the repository
+2. Create a branch: `git checkout -b feature/your-feature`
 3. Code + test: `cargo test && npx vitest run`
 4. Format: `cargo fmt && cargo clippy -- -D warnings`
-5. Commit với message rõ ràng
-6. Push và tạo Pull Request
+5. Commit with a clear message
+6. Push and create a Pull Request
 
-**Quy ước commit:** [Conventional Commits](https://www.conventionalcommits.org/)
-- `feat:` — tính năng mới
-- `fix:` — sửa lỗi
-- `test:` — thêm/sửa test
+**Commit convention:** [Conventional Commits](https://www.conventionalcommits.org/)
+- `feat:` — new feature
+- `fix:` — bug fix
+- `test:` — add/update tests
 - `chore:` — config, build, CI
 - `docs:` — documentation
 
-### Tài liệu tham khảo
+### References
 
 - [Design spec](docs/superpowers/specs/2026-07-09-grid-screen-design.md)
 - [Implementation plan](docs/superpowers/plans/2026-07-09-grid-screen-implementation.md)
@@ -599,12 +598,12 @@ Budget: `hit_test_64_zones` < 1ms (đảm bảo fit trong 16ms frame budget kể
 
 ### Roadmap
 
-| Giai đoạn | Nội dung |
-|-----------|----------|
-| **v0.1** (hiện tại) | X11 backend, Windows stub, Svelte 5 config UI, tray |
-| **v0.2** | Windows backend hoàn chỉnh (EnumDisplayMonitors, SetWindowPos, Event Hook) |
-| **v0.3** | Wayland hỗ trợ (qua XWayland), pixel format conversion cho overlay |
-| **v1.0** | macOS support, keyboard shortcuts, auto-layout gợi ý |
+| Phase | Scope |
+|-------|-------|
+| **v0.1** (current) | X11 backend, Windows backend, Svelte 5 config UI, tray |
+| **v0.2** | Windows event hook refinement, pixel format conversion for overlay |
+| **v0.3** | Wayland support (via XWayland), keyboard shortcuts |
+| **v1.0** | macOS support, auto-layout suggestions |
 
 ---
 
