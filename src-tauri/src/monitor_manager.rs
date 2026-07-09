@@ -17,20 +17,21 @@ impl MonitorManager {
         let monitors = Arc::new(ArcSwap::from_pointee(api.enumerate_monitors()));
         let monitors_clone = monitors.clone();
 
+        let api_event = Arc::clone(&api);
         thread::spawn(move || {
-            let rx = api.subscribe_display_change_events();
+            let rx = api_event.subscribe_display_change_events();
             for event in rx {
                 tracing::debug!("Display event: {:?}", event);
-                let updated = api.enumerate_monitors();
+                let updated = api_event.enumerate_monitors();
                 monitors_clone.store(Arc::new(updated));
             }
         });
 
         let monitors3 = monitors.clone();
-        let api3 = api.clone();
+        let api_poll = Arc::clone(&api);
         thread::spawn(move || loop {
             thread::sleep(Duration::from_secs(30));
-            let current = api3.enumerate_monitors();
+            let current = api_poll.enumerate_monitors();
             let current_ids: Vec<_> = current.iter().map(|m| m.id).collect();
             let prev_ids: Vec<_> = monitors3.load().iter().map(|m| m.id).collect();
             if current_ids != prev_ids || current.len() != prev_ids.len() {
