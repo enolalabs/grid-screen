@@ -9,21 +9,25 @@ pub struct MockPlatformApi {
     pub cursor_pos: Arc<Mutex<(i32, i32)>>,
     pub mouse_down: Arc<Mutex<bool>>,
     pub move_events_tx: mpsc::Sender<WindowMoveEvent>,
+    move_rx: Mutex<Option<mpsc::Receiver<WindowMoveEvent>>>,
     pub display_events_tx: mpsc::Sender<DisplayChangeEvent>,
+    display_rx: Mutex<Option<mpsc::Receiver<DisplayChangeEvent>>>,
     pub moved_windows: Arc<Mutex<Vec<(WindowHandle, Rect)>>>,
 }
 
 impl MockPlatformApi {
     pub fn new() -> Self {
-        let (move_tx, _) = mpsc::channel();
-        let (display_tx, _) = mpsc::channel();
+        let (move_tx, move_rx) = mpsc::channel();
+        let (display_tx, display_rx) = mpsc::channel();
         Self {
             monitors: Arc::new(Mutex::new(vec![])),
             windows: Arc::new(Mutex::new(vec![])),
             cursor_pos: Arc::new(Mutex::new((0, 0))),
             mouse_down: Arc::new(Mutex::new(false)),
             move_events_tx: move_tx,
+            move_rx: Mutex::new(Some(move_rx)),
             display_events_tx: display_tx,
+            display_rx: Mutex::new(Some(display_rx)),
             moved_windows: Arc::new(Mutex::new(vec![])),
         }
     }
@@ -75,15 +79,13 @@ impl PlatformApi for MockPlatformApi {
     }
 
     fn subscribe_window_move_events(&self) -> mpsc::Receiver<WindowMoveEvent> {
-        let (tx, rx) = mpsc::channel();
-        std::mem::drop(tx);
-        rx
+        self.move_rx.lock().unwrap().take()
+            .expect("subscribe_window_move_events called more than once")
     }
 
     fn subscribe_display_change_events(&self) -> mpsc::Receiver<DisplayChangeEvent> {
-        let (tx, rx) = mpsc::channel();
-        std::mem::drop(tx);
-        rx
+        self.display_rx.lock().unwrap().take()
+            .expect("subscribe_display_change_events called more than once")
     }
 
     fn create_overlay_window(&self, _monitor_id: MonitorId) -> Result<OverlayHandle, String> {
