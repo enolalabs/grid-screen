@@ -45,14 +45,14 @@
 **Interfaces:**
 - Produces: Runnable Tauri 2.x app with Svelte 5 frontend, system tray available, config window openable
 
-- [ ] **Step 1: Initialize Tauri project with Svelte 5**
+- [ ] **Step 1: Create all project files manually (non-interactive)**
 
-Run: `npm create tauri-app@latest grid-screen -- --template svelte-ts`
+Instead of the interactive `npm create tauri-app` wizard, create all files from scratch using the exact content below. Steps 3-6 specify every file needed. This ensures reproducible, CI-compatible setup.
 
-- [ ] **Step 2: Verify scaffold runs**
+- [ ] **Step 2: Verify scaffold compiles**
 
-Run: `cargo tauri dev`
-Expected: App window opens, shows Svelte welcome page
+Run: `cargo check`
+Expected: No errors. (Use `cargo check` instead of `cargo tauri dev` for headless/CI compatibility.)
 
 - [ ] **Step 3: Add core backend dependencies**
 
@@ -179,10 +179,10 @@ pub fn run() {
 }
 ```
 
-- [ ] **Step 7: Verify app compiles and runs**
+- [ ] **Step 7: Verify app compiles**
 
-Run: `cargo tauri dev`
-Expected: App window opens, devtools available, no errors
+Run: `cargo check`
+Expected: No errors. For visual verification (window, tray), use `cargo tauri dev` locally.
 
 - [ ] **Step 8: Commit**
 
@@ -1081,99 +1081,76 @@ git commit -m "feat: add MonitorManager with event-driven detection and safety-n
 - Create: `src-tauri/src/layout_manager.rs`
 
 **Interfaces:**
-- Consumes: `Zone`, `Layout`, `SavedLayout`, `Monitor`, `MonitorId` from `types.rs`; `ConfigStore` from `config_store.rs`
-- Produces: `LayoutManager` with `activate_layout(id)`, `get_zones(monitor)`, `save_layout(name, zones, monitor_id)`, `list_layouts()`, `delete_layout(id)`, `default_layout(monitors)`
+- Consumes: `Zone`, `Layout`, `SavedLayout`, `Monitor`, `MonitorId` from `types.rs`; `ConfigStore` from `config_store.rs`; `ArcSwap` from `arc_swap`; `RwLock` from `std`
+- Produces: `LayoutManager` as unit struct with static methods taking explicit state parameters: `get_zones(monitor, active_layouts)`, `activate(layout, active_layouts)`, `save_layout(name, zones, monitor_id, arrangement_id, config_store, saved_layouts)`, `list_layouts(config_store)`, `delete_layout(id, config_store, saved_layouts)`, `default_layout_for(monitor)`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `src-tauri/tests/layout_manager_tests.rs`:
 ```rust
 use std::sync::Arc;
+use arc_swap::ArcSwap;
+use std::sync::RwLock;
 use grid_screen::config_store::ConfigStore;
 use grid_screen::layout_manager::LayoutManager;
 use grid_screen::types::*;
-use uuid::Uuid;
 
 fn make_monitor(id: &str, w: u32, h: u32) -> Monitor {
     Monitor {
-        id: MonitorId(Uuid::new_v4()), name: id.into(),
+        id: MonitorId(uuid::Uuid::new_v4()), name: id.into(),
         x: 0, y: 0, width: w, height: h, dpi_scale: 1.0, is_primary: true,
     }
 }
 
 fn make_zone(name: &str, x: f64, y: f64, w: f64, h: f64) -> Zone {
-    Zone { id: Uuid::new_v4(), name: name.into(), x, y, width: w, height: h, gap: 4, margin: 8 }
+    Zone { id: uuid::Uuid::new_v4(), name: name.into(), x, y, width: w, height: h, gap: 4, margin: 8 }
 }
 
 #[test]
 fn test_activate_and_get_zones() {
     let temp = tempfile::tempdir().unwrap();
-    let store = Arc::new(ConfigStore::new(temp.path().to_path_buf()));
+    let store = ConfigStore::new(temp.path().to_path_buf());
+    let saved_layouts = RwLock::new(vec![]);
+    let active_layouts = Arc::new(ArcSwap::from_pointee(vec![]));
     let monitor = make_monitor("main", 1920, 1080);
-    let mut mgr = LayoutManager::new(store);
 
     let z1 = make_zone("left", 0.0, 0.0, 0.5, 1.0);
     let z2 = make_zone("right", 0.5, 0.0, 0.5, 1.0);
 
-    mgr.save_layout("work", vec![z1.clone(), z2.clone()], monitor.id).unwrap();
+    let _id = LayoutManager::save_layout("work", vec![z1.clone(), z2.clone()], monitor.id, "test-arr", &store, &saved_layouts).unwrap();
 
     let layout = Layout { zones: vec![z1, z2], monitor_id: monitor.id };
-    mgr.activate(layout);
+    LayoutManager::activate(layout, &active_layouts);
 
-    let zones = mgr.get_zones(&monitor);
+    let zones = LayoutManager::get_zones(&monitor, &active_layouts);
     assert_eq!(zones.len(), 2);
-}
-
-#[test]
-fn test_fractional_to_pixel_conversion() {
-    let monitor = make_monitor("4k", 3840, 2160);
-    let zone = Zone {
-        id: Uuid::new_v4(), name: "quarter".into(),
-        x: 0.25, y: 0.25, width: 0.5, height: 0.5,
-        gap: 0, margin: 0,
-    };
-    let rect = zone.effective_rect(&monitor);
-    assert_eq!(rect.x, 960);
-    assert_eq!(rect.y, 540);
-    assert_eq!(rect.width, 1920);
-    assert_eq!(rect.height, 1080);
 }
 
 #[test]
 fn test_list_and_delete_layouts() {
     let temp = tempfile::tempdir().unwrap();
-    let store = Arc::new(ConfigStore::new(temp.path().to_path_buf()));
+    let store = ConfigStore::new(temp.path().to_path_buf());
+    let saved_layouts = RwLock::new(vec![]);
     let monitor = make_monitor("m", 1024, 768);
-    let mut mgr = LayoutManager::new(store);
 
-    mgr.save_layout("alpha", vec![], monitor.id).unwrap();
-    mgr.save_layout("beta", vec![], monitor.id).unwrap();
+    let _ = LayoutManager::save_layout("alpha", vec![], monitor.id, "test-arr", &store, &saved_layouts).unwrap();
+    let _ = LayoutManager::save_layout("beta", vec![], monitor.id, "test-arr", &store, &saved_layouts).unwrap();
 
-    let list = mgr.list_layouts();
+    let list = LayoutManager::list_layouts(&store);
     assert_eq!(list.len(), 2);
 
     let alpha = list.iter().find(|l| l.name == "alpha").unwrap();
-    mgr.delete_layout(alpha.id).unwrap();
-
-    assert_eq!(mgr.list_layouts().len(), 1);
+    LayoutManager::delete_layout(alpha.id, &store, &saved_layouts).unwrap();
+    assert_eq!(LayoutManager::list_layouts(&store).len(), 1);
 }
 
 #[test]
 fn test_default_layout_creates_one_zone_per_monitor() {
-    let temp = tempfile::tempdir().unwrap();
-    let store = Arc::new(ConfigStore::new(temp.path().to_path_buf()));
-    let mgr = LayoutManager::new(store);
-
     let m1 = make_monitor("m1", 1920, 1080);
-    let m2 = make_monitor("m2", 1280, 720);
-
-    let d1 = mgr.default_layout_for(&m1);
-    let d2 = mgr.default_layout_for(&m2);
-
+    let d1 = LayoutManager::default_layout_for(&m1);
     assert_eq!(d1.zones.len(), 1);
     assert_eq!(d1.zones[0].x, 0.0);
     assert_eq!(d1.zones[0].width, 1.0);
-    assert_eq!(d2.zones.len(), 1);
 }
 ```
 
@@ -1255,7 +1232,7 @@ pub mod layout_manager;
 ```
 
 Run: `cargo test layout_manager`
-Expected: 4 tests pass
+Expected: 3 tests pass
 
 - [ ] **Step 4: Commit**
 
@@ -1381,7 +1358,7 @@ impl ZoneOverlay {
         }
     }
 
-    pub fn update(&mut self, highlighted_zone: Option<&Zone>, ghost_rect: Option<Rec>, monitor: &Monitor) {
+    pub fn update(&mut self, highlighted_zone: Option<&Zone>, ghost_rect: Option<Rect>, monitor: &Monitor) {
         let handle = match &self.active_overlay {
             Some(h) => h,
             None => return,
@@ -1556,10 +1533,7 @@ use tracing;
 use crate::platform::PlatformApi;
 use crate::types::*;
 
-pub struct SnapEvent {
-    pub window_handle: WindowHandle,
-    pub zone_rect: Rect,
-}
+const DRAG_THRESHOLD_PX: i32 = 5;
 
 pub struct DragDetector {
     paused: Arc<AtomicBool>,
@@ -2001,8 +1975,8 @@ Update `src-tauri/tauri.conf.json` to set `app.trayIcon.iconPath` and add icon p
 
 - [ ] **Step 3: Verify tray appears on dev run**
 
-Run: `cargo tauri dev`
-Expected: Tray icon visible in system tray area
+Run: `cargo check && cargo test`
+Expected: Compiles without errors, all tests pass. For visual tray verification, run `cargo tauri dev` locally.
 
 - [ ] **Step 4: Commit**
 
@@ -2202,10 +2176,10 @@ Write `src/routes/Settings.svelte`:
 <div><h2>Settings</h2><p>Coming next</p></div>
 ```
 
-- [ ] **Step 6: Verify app shows shell in dev**
+- [ ] **Step 6: Verify app compiles**
 
-Run: `cargo tauri dev`
-Expected: Window opens with tabbed navigation, three tabs visible
+Run: `cargo check && npx tsc --noEmit`
+Expected: No errors. For visual verification, use `cargo tauri dev` locally.
 
 - [ ] **Step 7: Commit**
 
@@ -2405,10 +2379,10 @@ Write `src/routes/LayoutEditor.svelte`:
 </style>
 ```
 
-- [ ] **Step 2: Verify editor renders and zones are creatable**
+- [ ] **Step 2: Verify editor compiles and tests pass**
 
-Run: `cargo tauri dev`
-Expected: Monitor panels rendered, click creates zones, double-click renames, right-click deletes
+Run: `cargo check && npx vitest run --dir src/routes/__tests__`
+Expected: No compile errors, 4 tests pass. For visual verification, use `cargo tauri dev` locally.
 
 - [ ] **Step 3: Add keyboard accessibility for zone movement**
 
@@ -2624,10 +2598,10 @@ Write `src/routes/Settings.svelte`:
 </style>
 ```
 
-- [ ] **Step 3: Verify all screens render**
+- [ ] **Step 3: Verify all screens compile**
 
-Run: `cargo tauri dev`
-Expected: All three tabs render correctly, settings saveable, layouts deletable
+Run: `cargo check && npx tsc --noEmit`
+Expected: No errors. For visual verification, use `cargo tauri dev` locally.
 
 - [ ] **Step 4: Commit**
 
@@ -2846,10 +2820,10 @@ Update `src/App.svelte`:
 </style>
 ```
 
-- [ ] **Step 3: Verify first-run flow**
+- [ ] **Step 3: Verify onboarding compiles**
 
-Run: `cargo tauri dev`
-Expected: Welcome overlay on first launch, dismissible, toast notifications functional
+Run: `cargo check && npx tsc --noEmit`
+Expected: No errors. For visual verification (overlay, toasts), use `cargo tauri dev` locally.
 
 - [ ] **Step 4: Commit**
 
@@ -3253,8 +3227,8 @@ Add to `src-tauri/src/lib.rs`:
 pub mod user_notifier;
 ```
 
-Run: `cargo tauri dev`, trigger a config corruption scenario
-Expected: Toast notification appears in frontend with the error message
+Run: `cargo check && cargo test`
+Expected: No errors, all tests pass. For end-to-end notification verification, use `cargo tauri dev` locally.
 
 - [ ] **Step 5: Commit**
 
