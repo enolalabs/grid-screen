@@ -3,6 +3,7 @@ use tauri::Manager;
 mod platform;
 mod types;
 pub mod config_store;
+pub mod monitor_manager;
 
 #[tauri::command]
 fn get_current_state() -> String {
