@@ -5,6 +5,7 @@ mod types;
 pub mod config_store;
 pub mod layout_manager;
 pub mod monitor_manager;
+pub mod zone_overlay;
 
 #[tauri::command]
 fn get_current_state() -> String {

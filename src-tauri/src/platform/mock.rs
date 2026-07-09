@@ -86,8 +86,8 @@ impl PlatformApi for MockPlatformApi {
         rx
     }
 
-    fn create_overlay_window(&self, _monitor_id: MonitorId) -> OverlayHandle {
-        OverlayHandle(1)
+    fn create_overlay_window(&self, _monitor_id: MonitorId) -> Result<OverlayHandle, String> {
+        Ok(OverlayHandle(1))
     }
 
     fn overlay_present(&self, _handle: &OverlayHandle, _pixels: &[u8], _w: u32, _h: u32) {}

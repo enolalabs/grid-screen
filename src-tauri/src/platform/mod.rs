@@ -11,7 +11,7 @@ pub trait PlatformApi: Send {
     fn is_mouse_button_down(&self) -> bool;
     fn subscribe_window_move_events(&self) -> mpsc::Receiver<WindowMoveEvent>;
     fn subscribe_display_change_events(&self) -> mpsc::Receiver<DisplayChangeEvent>;
-    fn create_overlay_window(&self, monitor_id: MonitorId) -> OverlayHandle;
+    fn create_overlay_window(&self, monitor_id: MonitorId) -> Result<OverlayHandle, String>;
     fn overlay_present(&self, handle: &OverlayHandle, pixels: &[u8], w: u32, h: u32);
     fn destroy_overlay_window(&self, handle: OverlayHandle);
     fn set_autostart(&self, enabled: bool) -> Result<(), String>;
