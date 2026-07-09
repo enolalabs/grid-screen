@@ -88,6 +88,12 @@ impl ConfigStore {
         fs::rename(&tmp_path, &path).map_err(|e| ConfigError::Io(e.to_string()))?;
         let _ = fs::remove_file(&tmp_path);
 
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).ok();
+        }
+
         tracing::info!("Config saved successfully");
         Ok(())
     }

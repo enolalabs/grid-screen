@@ -16,5 +16,26 @@
       "menuOnLeftClick": false
     }
   },
-  "plugins": {}
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.icns", "icons/icon.ico"],
+    "linux": {
+      "deb": { "depends": ["libgtk-3-0", "libwebkit2gtk-4.1-0", "libx11-6", "libxrandr2"] },
+      "appimage": { "bundleMediaFramework": true }
+    },
+    "windows": {
+      "nsis": { "installMode": "currentUser" },
+      "msi": {}
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/enolalabs/grid-screen/releases/latest/download/latest.json"
+      ],
+      "pubkey": "<insert-signing-pubkey-after-first-release>",
+      "windows": { "installMode": "passive" }
+    }
+  }
 }

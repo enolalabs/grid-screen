@@ -3,8 +3,10 @@ pub mod config_store;
 pub mod drag_detector;
 pub mod layout_manager;
 pub mod monitor_manager;
+pub mod perf;
 pub mod platform;
 pub mod types;
+pub mod user_notifier;
 pub mod zone_overlay;
 
 use std::sync::{Arc, RwLock};
@@ -123,6 +125,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             get_current_state,
