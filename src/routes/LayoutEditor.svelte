@@ -77,22 +77,24 @@
     }
   }
 
-  function getMonitorStyle(m: Monitor) {
+  function computeScale() {
     const maxW = Math.max(...monitors.map(x => x.width), 1);
     const maxH = Math.max(...monitors.map(x => x.height), 1);
-    const scale = Math.min(600 / maxW, 300 / maxH, 1);
-    return `width: ${m.width * scale}px; height: ${m.height * scale}px;`;
+    return Math.min(600 / maxW, 300 / maxH, 1);
+  }
+
+  function getMonitorStyle(m: Monitor) {
+    const s = computeScale();
+    return `width: ${m.width * s}px; height: ${m.height * s}px;`;
   }
 
   function zoneStyle(z: Zone, m: Monitor) {
-    const maxW = Math.max(...monitors.map(x => x.width), 1);
-    const maxH = Math.max(...monitors.map(x => x.height), 1);
-    const scale = Math.min(600 / maxW, 300 / maxH, 1);
+    const s = computeScale();
     return `
-      left: ${z.x * m.width * scale}px;
-      top: ${z.y * m.height * scale}px;
-      width: ${z.width * m.width * scale}px;
-      height: ${z.height * m.height * scale}px;
+      left: ${z.x * m.width * s}px;
+      top: ${z.y * m.height * s}px;
+      width: ${z.width * m.width * s}px;
+      height: ${z.height * m.height * s}px;
     `;
   }
 </script>
@@ -143,10 +145,17 @@
                 }}
                 onkeydown={(e) => {
                   const step = e.shiftKey ? 0.01 : (1.0 / GRID_COLS);
-                  if (e.key === "ArrowRight") zone.x = Math.min(zone.x + step, 1.0 - zone.width);
-                  if (e.key === "ArrowLeft") zone.x = Math.max(zone.x - step, 0);
-                  if (e.key === "ArrowDown") zone.y = Math.min(zone.y + step, 1.0 - zone.height);
-                  if (e.key === "ArrowUp") zone.y = Math.max(zone.y - step, 0);
+                  if (e.ctrlKey || e.metaKey) {
+                    if (e.key === "ArrowRight") zone.width = Math.min(zone.width + step, 1.0 - zone.x);
+                    if (e.key === "ArrowLeft") { zone.width = Math.max(zone.width - step, 1.0 / GRID_COLS); zone.x = Math.min(zone.x + step, zone.x); }
+                    if (e.key === "ArrowDown") zone.height = Math.min(zone.height + step, 1.0 - zone.y);
+                    if (e.key === "ArrowUp") { zone.height = Math.max(zone.height - step, 1.0 / GRID_COLS); zone.y = Math.min(zone.y + step, zone.y); }
+                  } else {
+                    if (e.key === "ArrowRight") zone.x = Math.min(zone.x + step, 1.0 - zone.width);
+                    if (e.key === "ArrowLeft") zone.x = Math.max(zone.x - step, 0);
+                    if (e.key === "ArrowDown") zone.y = Math.min(zone.y + step, 1.0 - zone.height);
+                    if (e.key === "ArrowUp") zone.y = Math.max(zone.y - step, 0);
+                  }
                   if (e.key === "Delete") { deleteTarget = { zone, monitorId: monitor.id }; }
                   zones = new Map(zones);
                 }}

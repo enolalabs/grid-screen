@@ -111,6 +111,16 @@ fn save_settings(
     Ok(())
 }
 
+#[tauri::command]
+fn set_default_layout(
+    state: tauri::State<AppState>,
+    layout_id: uuid::Uuid,
+) -> Result<(), String> {
+    let mut config = state.app_config.write().unwrap();
+    config.settings.default_layout_id = Some(layout_id);
+    Ok(())
+}
+
 fn app_config_dir() -> std::path::PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -248,6 +258,7 @@ pub fn run() {
             toggle_pause,
             get_settings,
             save_settings,
+            set_default_layout,
         ])
         .setup(move |app| {
             let _config_window = WebviewWindowBuilder::new(

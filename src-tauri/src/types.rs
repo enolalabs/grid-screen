@@ -118,6 +118,7 @@ pub struct AppSettings {
     pub accent_color: String,
     pub language: String,
     pub first_run_completed: bool,
+    pub default_layout_id: Option<uuid::Uuid>,
 }
 
 impl Default for AppSettings {
@@ -129,6 +130,7 @@ impl Default for AppSettings {
             accent_color: "#7C3AED".into(),
             language: "en".into(),
             first_run_completed: false,
+            default_layout_id: None,
         }
     }
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { savedLayouts } from "../lib/stores";
-  import { listLayouts, deleteLayout } from "../lib/ipc";
+  import { listLayouts, deleteLayout, setDefaultLayout } from "../lib/ipc";
   import type { SavedLayout } from "../lib/types";
 
   let layouts = $state<SavedLayout[]>([]);
@@ -30,7 +30,10 @@
             <strong>{layout.name}</strong>
             <span class="layout-meta">{layout.zones.length} zones</span>
           </div>
-          <button class="danger" onclick={() => handleDelete(layout.id, layout.name)}>Delete</button>
+          <div class="layout-actions">
+            <button onclick={() => setDefaultLayout(layout.id)}>Set Default</button>
+            <button class="danger" onclick={() => handleDelete(layout.id, layout.name)}>Delete</button>
+          </div>
         </div>
       {/each}
     </div>
@@ -44,6 +47,7 @@
   .layout-card { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #1e1e2e; border-radius: 8px; border: 1px solid #313244; }
   .layout-info { display: flex; flex-direction: column; gap: 2px; }
   .layout-meta { font-size: 12px; color: #6c7086; }
+  .layout-actions { display: flex; gap: 6px; }
   button { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; background: #45475a; color: #cdd6f4; }
   button.danger { background: #f38ba8; color: #1e1e2e; }
 </style>

@@ -32,3 +32,7 @@ export async function getSettings(): Promise<AppSettings> {
 export async function saveSettings(settings: AppSettings): Promise<void> {
   await invoke("save_settings", { settings });
 }
+
+export async function setDefaultLayout(layoutId: string): Promise<void> {
+  await invoke("set_default_layout", { layoutId });
+}
