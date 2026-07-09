@@ -100,6 +100,15 @@ impl DragDetector {
                             Some(s) if s.window_handle == handle => s,
                             _ => continue,
                         };
+
+                        // Skip if movement < threshold (noise filtering)
+                        let dx = (rect.x - state.original_rect.x).abs();
+                        let dy = (rect.y - state.original_rect.y).abs();
+                        if dx < DRAG_THRESHOLD_PX && dy < DRAG_THRESHOLD_PX {
+                            continue;
+                        }
+                        drop(ds); // release lock before callbacks
+
                         let (cx, cy) = api_drag.get_cursor_pos();
                         let monitor = match monitor_manager.get_monitor_at(cx, cy) {
                             Some(m) => m,

@@ -49,10 +49,14 @@ pub struct Zone {
 
 impl Zone {
     pub fn effective_rect(&self, monitor: &Monitor) -> Rect {
-        let mx = monitor.x as f64 + self.x * monitor.width as f64 + self.margin as f64 + (self.gap as f64 / 2.0);
-        let my = monitor.y as f64 + self.y * monitor.height as f64 + self.margin as f64 + (self.gap as f64 / 2.0);
-        let mw = (self.width * monitor.width as f64) - 2.0 * self.margin as f64 - self.gap as f64;
-        let mh = (self.height * monitor.height as f64) - 2.0 * self.margin as f64 - self.gap as f64;
+        // dpi_scale cancels for the position term (self.x * monitor.width)
+        // because X11 reports physical-pixel dimensions for both monitors
+        // and cursor coordinates. Scale is applied to gap/margin for high-DPI.
+        let scale = monitor.dpi_scale.max(1.0);
+        let mx = monitor.x as f64 + self.x * monitor.width as f64 + self.margin as f64 * scale + (self.gap as f64 * scale / 2.0);
+        let my = monitor.y as f64 + self.y * monitor.height as f64 + self.margin as f64 * scale + (self.gap as f64 * scale / 2.0);
+        let mw = (self.width * monitor.width as f64) - 2.0 * self.margin as f64 * scale - self.gap as f64 * scale;
+        let mh = (self.height * monitor.height as f64) - 2.0 * self.margin as f64 * scale - self.gap as f64 * scale;
         Rect {
             x: mx.floor() as i32,
             y: my.floor() as i32,
@@ -62,11 +66,15 @@ impl Zone {
     }
 
     pub fn contains(&self, px: f64, py: f64, monitor: &Monitor) -> bool {
-        let ex = self.x * monitor.width as f64;
-        let ey = self.y * monitor.height as f64;
-        let ew = self.width * monitor.width as f64;
-        let eh = self.height * monitor.height as f64;
-        px >= ex && px <= ex + ew && py >= ey && py <= ey + eh
+        // dpi_scale mathematically cancels in all comparisons because X11
+        // uses physical pixels for both monitor dimensions and cursor
+        // coordinates. It is included for consistency with the spec.
+        let scale = monitor.dpi_scale.max(1.0);
+        let ex = self.x * monitor.width as f64 * scale;
+        let ey = self.y * monitor.height as f64 * scale;
+        let ew = self.width * monitor.width as f64 * scale;
+        let eh = self.height * monitor.height as f64 * scale;
+        px * scale >= ex && px * scale <= ex + ew && py * scale >= ey && py * scale <= ey + eh
     }
 }
 

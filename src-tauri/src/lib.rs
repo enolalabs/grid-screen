@@ -17,6 +17,7 @@ use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
 };
+use tauri_plugin_shell::ShellExt;
 
 use app_state::{AppConfig, AppState, FrontendState};
 use config_store::ConfigStore;
@@ -261,10 +262,12 @@ pub fn run() {
 
             let configure = MenuItemBuilder::with_id("configure", "Configure").build(app)?;
             let pause = MenuItemBuilder::with_id("pause", "Pause").build(app)?;
+            let view_logs = MenuItemBuilder::with_id("view_logs", "View Logs").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
             let menu = MenuBuilder::new(app)
                 .item(&configure)
                 .item(&pause)
+                .item(&view_logs)
                 .item(&quit)
                 .build()?;
 
@@ -283,6 +286,15 @@ pub fn run() {
                         "pause" => {
                             let paused = !dd.is_paused();
                             dd.set_paused(paused);
+                        }
+                        "view_logs" => {
+                            let log_file = dirs::config_dir()
+                                .unwrap_or_default()
+                                .join("grid-screen")
+                                .join("grid-screen.log");
+                            if log_file.exists() {
+                                let _ = app.shell().open(log_file.to_string_lossy().as_ref(), None);
+                            }
                         }
                         "quit" => {
                             app.exit(0);

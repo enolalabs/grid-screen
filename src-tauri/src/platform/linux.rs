@@ -107,6 +107,10 @@ impl PlatformApi for LinuxPlatformApi {
                 }
 
                 return reply.monitors.iter().map(|m| {
+                    let dpi_x = if m.width_in_millimeters > 0 {
+                        m.width as f64 / (m.width_in_millimeters as f64 / 25.4)
+                    } else { 96.0 };
+                    let dpi_scale = (dpi_x / 96.0).max(1.0);
                     Monitor {
                         id: MonitorId(uuid::Uuid::new_v4()),
                         name: String::from_utf8_lossy(&m.name).to_string(),
@@ -114,7 +118,7 @@ impl PlatformApi for LinuxPlatformApi {
                         y: m.y as i32,
                         width: m.width as u32,
                         height: m.height as u32,
-                        dpi_scale: 1.0,
+                        dpi_scale,
                         is_primary: m.primary == 1,
                     }
                 }).collect();
@@ -237,20 +241,62 @@ impl PlatformApi for LinuxPlatformApi {
         let screen_num = self.x11.screen_num;
 
         thread::spawn(move || {
-            let conn = match RustConnection::connect(None) {
-                Ok((c, _)) => c,
+            let (conn, _) = match RustConnection::connect(None) {
+                Ok(c) => c,
                 Err(_) => return,
             };
 
             let root = conn.setup().roots[screen_num].root;
             let change = ChangeWindowAttributesAux::default()
-                .event_mask(EventMask::SUBSTRUCTURE_NOTIFY | EventMask::STRUCTURE_NOTIFY);
+                .event_mask(EventMask::SUBSTRUCTURE_NOTIFY);
             conn.change_window_attributes(root, &change).ok();
             conn.flush().ok();
 
+            let mut drag_window: Option<u32> = None;
+
             loop {
-                if conn.wait_for_event().is_err() {
-                    break;
+                let event = match conn.wait_for_event() {
+                    Ok(e) => e,
+                    Err(_) => break,
+                };
+
+                if let Event::ConfigureNotify(ev) = event {
+                    let window = ev.window;
+
+                    let btn_down = conn.query_pointer(root).ok()
+                        .and_then(|r| r.reply().ok())
+                        .map(|r| (r.mask & 0x1F00) != 0)
+                        .unwrap_or(false);
+
+                    let rect = Rect {
+                        x: ev.x as i32,
+                        y: ev.y as i32,
+                        width: ev.width as u32,
+                        height: ev.height as u32,
+                    };
+
+                    if btn_down {
+                        if drag_window != Some(window) {
+                            drag_window = Some(window);
+                            let _ = tx.send(WindowMoveEvent::DragStart {
+                                handle: WindowHandle(window as u64),
+                                rect,
+                            });
+                        } else {
+                            let _ = tx.send(WindowMoveEvent::DragMove {
+                                handle: WindowHandle(window as u64),
+                                rect,
+                            });
+                        }
+                    } else if let Some(dw) = drag_window {
+                        if dw == window {
+                            let _ = tx.send(WindowMoveEvent::DragEnd {
+                                handle: WindowHandle(window as u64),
+                                rect,
+                            });
+                        }
+                        drag_window = None;
+                    }
                 }
             }
         });

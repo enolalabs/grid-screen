@@ -85,6 +85,12 @@ impl ZoneOverlay {
                 rect.width as f32, rect.height as f32,
             ).unwrap());
             pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+
+            let mut border_paint = Paint::default();
+            border_paint.set_color_rgba8(124, 58, 237, 255);
+            let mut border_stroke = Stroke::default();
+            border_stroke.width = 2.0 * (monitor.dpi_scale as f32).max(1.0);
+            pixmap.stroke_path(&path, &border_paint, &border_stroke, Transform::identity(), None);
         }
 
         if let Some(rect) = ghost_rect {
@@ -95,6 +101,12 @@ impl ZoneOverlay {
                 rect.width as f32, rect.height as f32,
             ).unwrap());
             pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+
+            let mut border_paint = Paint::default();
+            border_paint.set_color_rgba8(124, 58, 237, 128);
+            let mut border_stroke = Stroke::default();
+            border_stroke.width = 2.0 * (monitor.dpi_scale as f32).max(1.0);
+            pixmap.stroke_path(&path, &border_paint, &border_stroke, Transform::identity(), None);
         }
 
         // NOTE: tiny-skia Pixmap data format is platform-dependent.
