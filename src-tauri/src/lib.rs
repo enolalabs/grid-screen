@@ -3,6 +3,7 @@ use tauri::Manager;
 mod platform;
 mod types;
 pub mod config_store;
+pub mod layout_manager;
 pub mod monitor_manager;
 
 #[tauri::command]
