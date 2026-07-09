@@ -8,7 +8,7 @@
   let zones = $state<Map<string, Zone[]>>(new Map());
   const GRID_COLS = 12;
   let saveName = $state("");
-  let deleteTarget = $state<Zone | null>(null);
+  let deleteTarget = $state<{ zone: Zone, monitorId: string } | null>(null);
   let toastMessage = $state("");
   let toastType = $state<"info" | "error">("info");
 
@@ -139,7 +139,7 @@
                 }}
                 oncontextmenu={(e) => {
                   e.preventDefault();
-                  deleteTarget = zone;
+                  deleteTarget = { zone, monitorId: monitor.id };
                 }}
                 onkeydown={(e) => {
                   const step = e.shiftKey ? 0.01 : (1.0 / GRID_COLS);
@@ -147,7 +147,7 @@
                   if (e.key === "ArrowLeft") zone.x = Math.max(zone.x - step, 0);
                   if (e.key === "ArrowDown") zone.y = Math.min(zone.y + step, 1.0 - zone.height);
                   if (e.key === "ArrowUp") zone.y = Math.max(zone.y - step, 0);
-                  if (e.key === "Delete") { deleteTarget = zone; }
+                  if (e.key === "Delete") { deleteTarget = { zone, monitorId: monitor.id }; }
                   zones = new Map(zones);
                 }}
               >
@@ -164,9 +164,9 @@
 {#if deleteTarget}
   <div class="confirm-overlay" role="alertdialog" aria-label="Delete zone">
     <div class="confirm-card">
-      <p>Delete zone "{deleteTarget.name}"?</p>
+      <p>Delete zone "{deleteTarget.zone.name}"?</p>
       <div class="confirm-actions">
-        <button onclick={() => { handleDeleteZone(monitors[0].id, deleteTarget.id); deleteTarget = null; }}>Delete</button>
+        <button onclick={() => { handleDeleteZone(deleteTarget.monitorId, deleteTarget.zone.id); deleteTarget = null; }}>Delete</button>
         <button onclick={() => deleteTarget = null}>Cancel</button>
       </div>
     </div>

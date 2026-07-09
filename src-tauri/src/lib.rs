@@ -20,7 +20,10 @@ use tauri::{
 
 use app_state::{AppConfig, AppState, FrontendState};
 use config_store::ConfigStore;
+use drag_detector::DragDetector;
 use layout_manager::LayoutManager;
+use monitor_manager::MonitorManager;
+use platform::PlatformApi;
 use types::*;
 
 #[tauri::command]
@@ -54,13 +57,15 @@ fn apply_layout(
 #[tauri::command]
 fn save_layout(
     state: tauri::State<AppState>,
+    monitor_mgr: tauri::State<Arc<MonitorManager>>,
     name: String,
     zones: Vec<Zone>,
     monitor_id: MonitorId,
 ) -> Result<(), String> {
     let config_store = ConfigStore::new(app_config_dir());
     let saved_layouts = &state.app_config.read().unwrap().saved_layouts;
-    LayoutManager::save_layout(&name, zones, monitor_id, "default", &config_store, saved_layouts)?;
+    let arrangement_id = monitor_mgr.arrangement_id();
+    LayoutManager::save_layout(&name, zones, monitor_id, &arrangement_id, &config_store, saved_layouts)?;
     Ok(())
 }
 
@@ -91,9 +96,17 @@ fn get_settings(state: tauri::State<AppState>) -> AppSettings {
 }
 
 #[tauri::command]
-fn save_settings(state: tauri::State<AppState>, settings: AppSettings) -> Result<(), String> {
+fn save_settings(
+    state: tauri::State<AppState>,
+    platform_api: tauri::State<Arc<dyn PlatformApi>>,
+    settings: AppSettings,
+) -> Result<(), String> {
+    let auto_start_changed = settings.auto_start != state.app_config.read().unwrap().settings.auto_start;
     let mut config = state.app_config.write().unwrap();
-    config.settings = settings;
+    config.settings = settings.clone();
+    if auto_start_changed {
+        platform_api.set_autostart(settings.auto_start)?;
+    }
     Ok(())
 }
 
@@ -118,15 +131,93 @@ pub fn run() {
         drag_state: std::sync::Mutex::new(None),
         app_config: RwLock::new(AppConfig {
             is_paused: false,
-            settings: loaded_config.settings,
+            settings: loaded_config.settings.clone(),
             saved_layouts: RwLock::new(loaded_config.layouts),
         }),
     };
+
+    // Platform API initialization
+    #[cfg(target_os = "linux")]
+    let platform_api: Arc<dyn PlatformApi> = {
+        match platform::LinuxPlatformApi::new() {
+            Ok(api) => {
+                tracing::info!("X11 platform API initialized");
+                Arc::new(api)
+            }
+            Err(e) => {
+                tracing::error!("Failed to initialize X11: {}. Falling back to mock.", e);
+                Arc::new(platform::mock::MockPlatformApi::new())
+            }
+        }
+    };
+    #[cfg(target_os = "windows")]
+    let platform_api: Arc<dyn PlatformApi> = Arc::new(platform::WindowsPlatformApi::new());
+
+    // MonitorManager: event-driven + 30s safety-net polling
+    let monitor_manager = Arc::new(MonitorManager::new(platform_api.clone()));
+    let monitors_arc = app_state.monitors.clone();
+    {
+        let mm = monitor_manager.clone();
+        std::thread::spawn(move || loop {
+            std::thread::sleep(std::time::Duration::from_secs(30));
+            monitors_arc.store(Arc::new(mm.all_monitors()));
+        });
+    }
+
+    // ZoneOverlay: shared for access from drag detector callbacks
+    let overlay = Arc::new(std::sync::Mutex::new(zone_overlay::ZoneOverlay::new(platform_api.clone())));
+
+    // DragDetector: event-driven drag processing
+    let (snap_tx, _snap_rx) = std::sync::mpsc::channel::<SnapEvent>();
+    let drag_detector = {
+        let active_layouts = app_state.active_layouts.clone();
+        let overlay_show = overlay.clone();
+        let overlay_update = overlay.clone();
+        let overlay_hide = overlay.clone();
+
+        Arc::new(DragDetector::new(
+            platform_api.clone(),
+            snap_tx,
+            monitor_manager.clone(),
+            active_layouts,
+            move |monitor| {
+                if let Ok(mut ov) = overlay_show.lock() {
+                    ov.show(monitor);
+                }
+            },
+            move |zone, ghost, monitor| {
+                if let Ok(mut ov) = overlay_update.lock() {
+                    ov.update(zone.as_ref(), ghost, monitor);
+                }
+            },
+            move || {
+                if let Ok(mut ov) = overlay_hide.lock() {
+                    ov.hide();
+                }
+            },
+        ))
+    };
+
+    // Load active layouts from config
+    let saved_config = config_store.load();
+    *app_state.app_config.write().unwrap().saved_layouts.write().unwrap() = saved_config.layouts.clone();
+    for layout in &saved_config.layouts {
+        let active = Layout {
+            zones: layout.zones.clone(),
+            monitor_id: layout.monitor_id,
+        };
+        let mut current = app_state.active_layouts.load().to_vec();
+        current.retain(|l| l.monitor_id != active.monitor_id);
+        current.push(active);
+        app_state.active_layouts.store(Arc::new(current));
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(app_state)
+        .manage(platform_api.clone())
+        .manage(monitor_manager.clone())
         .invoke_handler(tauri::generate_handler![
             get_current_state,
             apply_layout,
@@ -157,6 +248,7 @@ pub fn run() {
                 .item(&quit)
                 .build()?;
 
+            let dd = drag_detector.clone();
             TrayIconBuilder::new("grid-screen-tray")
                 .menu(&menu)
                 .tooltip("Grid Screen")
@@ -169,7 +261,8 @@ pub fn run() {
                             }
                         }
                         "pause" => {
-                            // Toggle handled via app state in full integration
+                            let paused = !dd.is_paused();
+                            dd.set_paused(paused);
                         }
                         "quit" => {
                             app.exit(0);
@@ -191,7 +284,7 @@ fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
     std::fs::create_dir_all(&config_dir).ok();
 
     let file_appender = tracing_appender::rolling::Builder::new()
-        .rotation(tracing_appender::rolling::Rotation::NEVER)
+        .rotation(tracing_appender::rolling::Rotation::DAILY)
         .filename_prefix("grid-screen")
         .filename_suffix("log")
         .max_file_size(1_000_000)

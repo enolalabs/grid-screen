@@ -4,8 +4,11 @@ use std::sync::{
 };
 use std::thread;
 
+use arc_swap::ArcSwap;
 use tracing;
 
+use crate::layout_manager::LayoutManager;
+use crate::monitor_manager::MonitorManager;
 use crate::platform::PlatformApi;
 use crate::types::*;
 
@@ -18,15 +21,19 @@ pub struct DragDetector {
 }
 
 impl DragDetector {
-    pub fn new<F1, F2>(
+    pub fn new<F1, F2, F3>(
         api: Arc<dyn PlatformApi>,
         snap_sender: mpsc::Sender<SnapEvent>,
+        monitor_manager: Arc<MonitorManager>,
+        active_layouts: Arc<ArcSwap<Vec<Layout>>>,
         mut on_show_overlay: F1,
-        mut on_hide_overlay: F2,
+        mut on_update_overlay: F2,
+        mut on_hide_overlay: F3,
     ) -> Self
     where
         F1: FnMut(Monitor) + Send + 'static,
-        F2: FnMut() + Send + 'static,
+        F2: FnMut(Option<Zone>, Option<Rect>, &Monitor) + Send + 'static,
+        F3: FnMut() + Send + 'static,
     {
         let paused = Arc::new(AtomicBool::new(false));
         let drag_state = Arc::new(Mutex::new(None::<DragState>));
@@ -45,55 +52,102 @@ impl DragDetector {
                 }
 
                 if paused_clone.load(Ordering::Relaxed) {
-                    thread::sleep(std::time::Duration::from_millis(1));
+                    std::thread::sleep(std::time::Duration::from_millis(100));
                     continue;
                 }
 
-                match rx.try_recv() {
-                    Ok(event) => {
-                        match event {
-                            WindowMoveEvent::DragStart { handle, rect } => {
-                                if !api_drag.is_mouse_button_down() {
-                                    continue;
-                                }
-                                let mut ds = drag_state_clone.lock().unwrap();
-                                if let Some(ref state) = *ds {
-                                    if state.snap_in_progress && state.window_handle == handle {
-                                        continue;
-                                    }
-                                }
-                                *ds = Some(DragState {
-                                    window_handle: handle,
-                                    original_rect: rect,
-                                    snap_in_progress: false,
-                                });
-                                let cursor = api_drag.get_cursor_pos();
-                                on_show_overlay(Monitor {
-                                    id: MonitorId(uuid::Uuid::new_v4()),
-                                    name: "".into(),
-                                    x: 0, y: 0, width: 1920, height: 1080,
-                                    dpi_scale: 1.0, is_primary: true,
-                                });
+                let event = match rx.recv() {
+                    Ok(e) => e,
+                    Err(_) => break,
+                };
+
+                // Clear stale snap_in_progress on any non-DragStart event
+                if !matches!(event, WindowMoveEvent::DragStart { .. }) {
+                    if let Ok(mut ds) = drag_state_clone.lock() {
+                        if let Some(ref state) = *ds {
+                            if state.snap_in_progress {
+                                *ds = None;
                             }
-                            WindowMoveEvent::DragEnd { handle, rect } => {
-                                let mut ds = drag_state_clone.lock().unwrap();
-                                if let Some(state) = ds.as_mut() {
-                                    if state.window_handle == handle {
-                                        state.snap_in_progress = true;
-                                        let zone_rect = rect;
-                                        let _ = snap_sender.send(SnapEvent { window_handle: handle, zone_rect });
-                                        *ds = None;
-                                        on_hide_overlay();
-                                    }
-                                }
-                            }
-                            WindowMoveEvent::DragMove { .. } => {}
                         }
                     }
-                    Err(mpsc::TryRecvError::Empty) => {
-                        std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+
+                match event {
+                    WindowMoveEvent::DragStart { handle, rect } => {
+                        if !api_drag.is_mouse_button_down() {
+                            continue;
+                        }
+                        let mut ds = drag_state_clone.lock().unwrap();
+                        if let Some(ref state) = *ds {
+                            if state.snap_in_progress && state.window_handle == handle {
+                                continue;
+                            }
+                        }
+                        // New drag: store state, show overlay on cursor's monitor
+                        *ds = Some(DragState {
+                            window_handle: handle,
+                            original_rect: rect,
+                            snap_in_progress: false,
+                        });
+                        let (cx, cy) = api_drag.get_cursor_pos();
+                        if let Some(monitor) = monitor_manager.get_monitor_at(cx, cy) {
+                            on_show_overlay(monitor);
+                        }
                     }
-                    Err(mpsc::TryRecvError::Disconnected) => break,
+                    WindowMoveEvent::DragMove { handle, rect } => {
+                        let ds = drag_state_clone.lock().unwrap();
+                        let state = match ds.as_ref() {
+                            Some(s) if s.window_handle == handle => s,
+                            _ => continue,
+                        };
+                        let (cx, cy) = api_drag.get_cursor_pos();
+                        let monitor = match monitor_manager.get_monitor_at(cx, cy) {
+                            Some(m) => m,
+                            None => continue,
+                        };
+                        let zones = LayoutManager::get_zones(&monitor, &active_layouts);
+                        let mut highlighted: Option<Zone> = None;
+                        for zone in &zones {
+                            if zone.contains(cx as f64 - monitor.x as f64, cy as f64 - monitor.y as f64, &monitor) {
+                                highlighted = Some(zone.clone());
+                                break;
+                            }
+                        }
+
+                        let ghost = highlighted.as_ref().map(|z| z.effective_rect(&monitor))
+                            .unwrap_or(Rect { x: cx - rect.width as i32 / 2, y: cy - rect.height as i32 / 2, width: rect.width, height: rect.height });
+
+                        on_update_overlay(highlighted, Some(ghost), &monitor);
+                    }
+                    WindowMoveEvent::DragEnd { handle, rect } => {
+                        let mut ds = drag_state_clone.lock().unwrap();
+                        let state = match ds.as_mut() {
+                            Some(s) if s.window_handle == handle => s,
+                            _ => continue,
+                        };
+                        let (cx, cy) = api_drag.get_cursor_pos();
+                        let monitor = match monitor_manager.get_monitor_at(cx, cy) {
+                            Some(m) => m,
+                            None => {
+                                *ds = None;
+                                on_hide_overlay();
+                                continue;
+                            }
+                        };
+                        let zones = LayoutManager::get_zones(&monitor, &active_layouts);
+                        let hit_zone = zones.iter().find(|z| {
+                            z.contains(cx as f64 - monitor.x as f64, cy as f64 - monitor.y as f64, &monitor)
+                        });
+
+                        if let Some(zone) = hit_zone {
+                            state.snap_in_progress = true;
+                            let zone_rect = zone.effective_rect(&monitor);
+                            let _ = snap_sender.send(SnapEvent { window_handle: handle, zone_rect });
+                        }
+                        // Keep drag_state with snap_in_progress flag to block repeated detection
+                        // Clear on next idle (non-DragStart event above)
+                        on_hide_overlay();
+                    }
                 }
             }
             tracing::info!("DragDetector event loop stopped");

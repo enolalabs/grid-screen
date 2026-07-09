@@ -1,7 +1,10 @@
 use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::Duration;
+
+use arc_swap::ArcSwap;
 use grid_screen::drag_detector::*;
+use grid_screen::monitor_manager::MonitorManager;
 use grid_screen::platform::mock::MockPlatformApi;
 use grid_screen::platform::PlatformApi;
 use grid_screen::types::*;
@@ -20,8 +23,10 @@ fn test_drag_detector_ignores_events_when_paused() {
     api.add_monitor(make_monitor("m1", 1920, 1080));
     api.set_cursor(500, 500);
 
+    let mm = Arc::new(MonitorManager::new(api.clone()));
+    let active = Arc::new(ArcSwap::from_pointee(vec![]));
     let (snap_tx, snap_rx) = mpsc::channel();
-    let dt = DragDetector::new(api.clone(), snap_tx, |_| {}, || {});
+    let dt = DragDetector::new(api.clone(), snap_tx, mm, active, |_| {}, |_, _, _| {}, || {});
     dt.set_paused(true);
 
     let handle = WindowHandle(42);
@@ -43,8 +48,10 @@ fn test_snap_in_progress_blocks_repeated_detection() {
     api.set_cursor(500, 500);
     api.set_mouse_down(true);
 
+    let mm = Arc::new(MonitorManager::new(api.clone()));
+    let active = Arc::new(ArcSwap::from_pointee(vec![]));
     let (snap_tx, snap_rx) = mpsc::channel();
-    let dt = DragDetector::new(api.clone(), snap_tx, |_| {}, || {});
+    let dt = DragDetector::new(api.clone(), snap_tx, mm, active, |_| {}, |_, _, _| {}, || {});
 
     let handle = WindowHandle(99);
 

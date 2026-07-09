@@ -1,9 +1,21 @@
 pub mod mock;
 
+#[cfg(target_os = "linux")]
+pub mod linux;
+
+#[cfg(target_os = "linux")]
+pub use linux::LinuxPlatformApi;
+
+#[cfg(target_os = "windows")]
+pub mod windows;
+
+#[cfg(target_os = "windows")]
+pub use windows::WindowsPlatformApi;
+
 use std::sync::mpsc;
 use crate::types::*;
 
-pub trait PlatformApi: Send {
+pub trait PlatformApi: Send + Sync {
     fn enumerate_monitors(&self) -> Vec<Monitor>;
     fn enumerate_windows(&self) -> Vec<Window>;
     fn move_window(&self, handle: WindowHandle, rect: Rect);

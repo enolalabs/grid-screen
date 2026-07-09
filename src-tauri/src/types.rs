@@ -27,7 +27,7 @@ pub struct Window {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct WindowHandle(pub u64);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Rect {
     pub x: i32,
     pub y: i32,

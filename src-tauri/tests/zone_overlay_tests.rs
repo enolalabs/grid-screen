@@ -21,7 +21,7 @@ fn test_overlay_buffer_size_matches_monitor() {
 
 #[test]
 fn test_dirty_rect_only_repaints_changed_zones() {
-    let monitor = make_monitor(1920, 1080);
+    let _monitor = make_monitor(1920, 1080);
     let zones = vec![
         make_zone("left", 0.0, 0.0, 0.5, 1.0),
         make_zone("right", 0.5, 0.0, 0.5, 1.0),
@@ -34,10 +34,10 @@ fn test_dirty_rect_only_repaints_changed_zones() {
 }
 
 #[test]
-fn test_pixel_buffer_pre_allocation_reuse() {
+fn test_pre_allocated_pixmap_size_matches_monitor() {
     let monitor = make_monitor(1920, 1080);
-    let buffer = vec![0u8; (monitor.width * monitor.height * 4) as usize];
-    assert_eq!(buffer.len(), 1920 * 1080 * 4);
-    let buffer2 = Vec::with_capacity(buffer.len());
-    assert_eq!(buffer2.capacity(), buffer.len());
+    let pixmap = tiny_skia::Pixmap::new(monitor.width, monitor.height);
+    assert!(pixmap.is_some());
+    let p = pixmap.unwrap();
+    assert_eq!(p.data().len(), (1920 * 1080 * 4) as usize);
 }

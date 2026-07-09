@@ -10,7 +10,7 @@ pub struct ZoneOverlay {
     api: Arc<dyn PlatformApi>,
     active_overlay: Option<OverlayHandle>,
     current_monitor: Option<Monitor>,
-    pixel_buffer: Vec<u8>,
+    pixmap: Option<Pixmap>,
     prev_highlighted_zone_id: Option<uuid::Uuid>,
     prev_ghost_rect: Option<Rect>,
 }
@@ -21,7 +21,7 @@ impl ZoneOverlay {
             api,
             active_overlay: None,
             current_monitor: None,
-            pixel_buffer: Vec::new(),
+            pixmap: None,
             prev_highlighted_zone_id: None,
             prev_ghost_rect: None,
         }
@@ -33,7 +33,7 @@ impl ZoneOverlay {
         }
         let w = monitor.width;
         let h = monitor.height;
-        self.pixel_buffer = vec![0u8; (w * h * 4) as usize];
+        self.pixmap = Pixmap::new(w, h);
         match self.api.create_overlay_window(monitor.id) {
             Ok(handle) => {
                 self.active_overlay = Some(handle);
@@ -41,6 +41,7 @@ impl ZoneOverlay {
             }
             Err(e) => {
                 tracing::warn!("Failed to create overlay window: {:?}", e);
+                self.pixmap = None;
             }
         }
     }
@@ -48,6 +49,11 @@ impl ZoneOverlay {
     pub fn update(&mut self, highlighted_zone: Option<&Zone>, ghost_rect: Option<Rect>, monitor: &Monitor) {
         let handle = match &self.active_overlay {
             Some(h) => h,
+            None => return,
+        };
+
+        let pixmap = match &mut self.pixmap {
+            Some(p) => p,
             None => return,
         };
 
@@ -61,10 +67,14 @@ impl ZoneOverlay {
         self.prev_highlighted_zone_id = highlighted_zone.map(|z| z.id);
         self.prev_ghost_rect = ghost_rect;
 
-        let w = monitor.width;
-        let h = monitor.height;
-
-        let mut pixmap = Pixmap::new(w, h).unwrap();
+        // Clear and reuse pre-allocated pixmap
+        pixmap.fill_path(
+            &PathBuilder::from_rect(Rect::from_xywh(0.0, 0.0, monitor.width as f32, monitor.height as f32).unwrap()),
+            &Paint::default(),
+            tiny_skia::FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
 
         if let Some(zone) = highlighted_zone {
             let mut paint = Paint::default();
@@ -87,8 +97,11 @@ impl ZoneOverlay {
             pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
         }
 
-        self.api.overlay_present(handle, pixmap.data(), w, h);
-        tracing::trace!("Overlay frame presented {}x{}", w, h);
+        // NOTE: tiny-skia Pixmap data format is platform-dependent.
+        // On X11: native-endian ARGB. On Windows: premultiplied BGRA.
+        // Pixel format conversion may be needed before overlay_present.
+        self.api.overlay_present(handle, pixmap.data(), monitor.width, monitor.height);
+        tracing::trace!("Overlay frame presented {}x{}", monitor.width, monitor.height);
     }
 
     pub fn hide(&mut self) {
@@ -96,8 +109,8 @@ impl ZoneOverlay {
             self.api.destroy_overlay_window(handle);
         }
         self.current_monitor = None;
+        self.pixmap = None;
         self.prev_highlighted_zone_id = None;
         self.prev_ghost_rect = None;
-        self.pixel_buffer.clear();
     }
 }

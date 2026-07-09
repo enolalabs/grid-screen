@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { getCurrentState, getSettings } from "./lib/ipc";
+  import { getCurrentState, getSettings, saveSettings } from "./lib/ipc";
   import { currentState, savedLayouts, settings } from "./lib/stores";
   import { notifications, notify } from "./lib/notifications";
   import LayoutEditor from "./routes/LayoutEditor.svelte";
@@ -39,7 +39,12 @@
     };
   });
 
-  function dismissOnboarding() { showOnboarding = false; }
+  async function dismissOnboarding() {
+    showOnboarding = false;
+    const s = await getSettings();
+    s.first_run_completed = true;
+    await saveSettings(s);
+  }
 </script>
 
 <div class="app-shell">
