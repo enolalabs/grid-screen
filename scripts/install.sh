@@ -143,6 +143,7 @@ if [[ "$INSTALL_MODE" == "deps" ]]; then
     echo "  To build manually:"
     echo "    cd $INSTALL_DIR"
     echo "    npm install"
+    echo "    npm run build"
     echo "    cargo build --release --manifest-path src-tauri/Cargo.toml"
     echo ""
     ok "Installation complete (deps only)!"
@@ -158,11 +159,17 @@ ok "Frontend dependencies installed"
 echo ""
 info "Step 6/7: Building Grid Screen (this may take 5-15 minutes)..."
 
+# Build frontend first (needed for tauri embed)
+info "Building frontend..."
+npm run build --silent 2>&1 | tail -3
+
 if [[ "$INSTALL_MODE" == "dev" ]]; then
+    info "Building Rust (debug mode)..."
     cargo build --manifest-path src-tauri/Cargo.toml 2>&1 | tail -5
     BINARY_PATH="$INSTALL_DIR/src-tauri/target/debug/grid-screen"
 else
-    cargo build --release --manifest-path src-tauri/Cargo.toml 2>&1 | tail -5
+    info "Building Rust (release mode)..."
+    npx tauri build --ci 2>&1 | tail -10
     BINARY_PATH="$INSTALL_DIR/src-tauri/target/release/grid-screen"
 fi
 

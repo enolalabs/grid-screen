@@ -34,4 +34,4 @@ tauri-build = "2"
 windows = { version = "0.58", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_UI_Input", "Win32_System_Registry", "Win32_System_LibraryLoader"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-x11rb = { version = "0.13", features = ["randr", "xinerama", "shape", "present"] }
+x11rb = { version = "0.13", features = ["randr", "xinerama", "shape"] }

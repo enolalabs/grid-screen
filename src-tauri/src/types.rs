@@ -24,7 +24,7 @@ pub struct Window {
     pub is_visible: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct WindowHandle(pub u64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

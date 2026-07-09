@@ -283,7 +283,9 @@ pub fn run() {
                 .build()?;
 
             let dd = drag_detector.clone();
-            TrayIconBuilder::new("grid-screen-tray")
+            let dd_pause = drag_detector.clone();
+
+            let tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .tooltip("Grid Screen")
                 .on_menu_event(move |app, event| {
@@ -330,8 +332,6 @@ fn setup_logging() -> tracing_appender::non_blocking::WorkerGuard {
         .rotation(tracing_appender::rolling::Rotation::DAILY)
         .filename_prefix("grid-screen")
         .filename_suffix("log")
-        .max_file_size(1_000_000)
-        .max_log_files(3)
         .build(&config_dir)
         .unwrap();
 

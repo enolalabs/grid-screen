@@ -4,7 +4,7 @@ use tiny_skia::{Paint, PathBuilder, Pixmap, Rect, Stroke, Transform};
 use tracing;
 
 use crate::platform::PlatformApi;
-use crate::types::*;
+use crate::types::{self, *};
 
 pub struct ZoneOverlay {
     api: Arc<dyn PlatformApi>,
@@ -12,7 +12,7 @@ pub struct ZoneOverlay {
     current_monitor: Option<Monitor>,
     pixmap: Option<Pixmap>,
     prev_highlighted_zone_id: Option<uuid::Uuid>,
-    prev_ghost_rect: Option<Rect>,
+    prev_ghost_rect: Option<types::Rect>,
 }
 
 impl ZoneOverlay {
@@ -46,7 +46,7 @@ impl ZoneOverlay {
         }
     }
 
-    pub fn update(&mut self, highlighted_zone: Option<&Zone>, ghost_rect: Option<Rect>, monitor: &Monitor) {
+    pub fn update(&mut self, highlighted_zone: Option<&Zone>, ghost_rect: Option<types::Rect>, monitor: &Monitor) {
         let handle = match &self.active_overlay {
             Some(h) => h,
             None => return,

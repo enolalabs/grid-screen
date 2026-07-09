@@ -33,7 +33,7 @@ impl MonitorManager {
             let current = api3.enumerate_monitors();
             let current_ids: Vec<_> = current.iter().map(|m| m.id).collect();
             let prev_ids: Vec<_> = monitors3.load().iter().map(|m| m.id).collect();
-            if current_ids != prev_ids || current.len() != prev.len() {
+            if current_ids != prev_ids || current.len() != prev_ids.len() {
                 tracing::info!("Safety-net polling detected monitor change");
                 monitors3.store(Arc::new(current));
             }

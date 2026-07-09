@@ -1,0 +1,1 @@
+{"gridscreen:default":{"identifier":"gridscreen:default","description":"Default capability for Grid Screen config window","local":true,"windows":["config-*"],"permissions":["core:default","core:tray:default","shell:allow-open","updater:default","core:window:allow-close","core:window:allow-set-focus","core:window:allow-show","core:window:allow-hide"]}}
