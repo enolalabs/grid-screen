@@ -10,7 +10,11 @@ pub mod zone_overlay;
 use std::sync::{Arc, RwLock};
 
 use arc_swap::ArcSwap;
-use tauri::{Manager, WebviewWindowBuilder};
+use tauri::{
+    Manager, WebviewWindowBuilder,
+    menu::{MenuBuilder, MenuItemBuilder},
+    tray::TrayIconBuilder,
+};
 
 use app_state::{AppConfig, AppState, FrontendState};
 use config_store::ConfigStore;
@@ -140,6 +144,37 @@ pub fn run() {
             .inner_size(900.0, 650.0)
             .visible(false)
             .build()?;
+
+            let configure = MenuItemBuilder::with_id("configure", "Configure").build(app)?;
+            let pause = MenuItemBuilder::with_id("pause", "Pause").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+            let menu = MenuBuilder::new(app)
+                .item(&configure)
+                .item(&pause)
+                .item(&quit)
+                .build()?;
+
+            TrayIconBuilder::new("grid-screen-tray")
+                .menu(&menu)
+                .tooltip("Grid Screen")
+                .on_menu_event(move |app, event| {
+                    match event.id.as_ref() {
+                        "configure" => {
+                            if let Some(w) = app.get_webview_window("config-main") {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                            }
+                        }
+                        "pause" => {
+                            // Toggle handled via app state in full integration
+                        }
+                        "quit" => {
+                            app.exit(0);
+                        }
+                        _ => {}
+                    }
+                })
+                .build(app)?;
 
             tracing::info!("Grid Screen started successfully");
             Ok(())
