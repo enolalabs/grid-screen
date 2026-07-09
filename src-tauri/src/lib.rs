@@ -151,7 +151,18 @@ pub fn run() {
         }
     };
     #[cfg(target_os = "windows")]
-    let platform_api: Arc<dyn PlatformApi> = Arc::new(platform::WindowsPlatformApi::new());
+    let platform_api: Arc<dyn PlatformApi> = {
+        match platform::WindowsPlatformApi::new() {
+            Ok(api) => {
+                tracing::info!("Windows platform API initialized");
+                Arc::new(api)
+            }
+            Err(e) => {
+                tracing::error!("Failed to init Windows platform: {}. Falling back.", e);
+                Arc::new(platform::mock::MockPlatformApi::new())
+            }
+        }
+    };
 
     // MonitorManager: event-driven + 30s safety-net polling
     let monitor_manager = Arc::new(MonitorManager::new(platform_api.clone()));
@@ -168,7 +179,7 @@ pub fn run() {
     let overlay = Arc::new(std::sync::Mutex::new(zone_overlay::ZoneOverlay::new(platform_api.clone())));
 
     // DragDetector: event-driven drag processing
-    let (snap_tx, _snap_rx) = std::sync::mpsc::channel::<SnapEvent>();
+    let (snap_tx, snap_rx) = std::sync::mpsc::channel::<SnapEvent>();
     let drag_detector = {
         let active_layouts = app_state.active_layouts.clone();
         let overlay_show = overlay.clone();
@@ -197,6 +208,15 @@ pub fn run() {
             },
         ))
     };
+
+    // Snap consumer: move windows to zone rects
+    let snap_api = platform_api.clone();
+    std::thread::spawn(move || {
+        for snap in snap_rx {
+            tracing::debug!("Snapping window {:?} to {:?}", snap.window_handle, snap.zone_rect);
+            snap_api.move_window(snap.window_handle, snap.zone_rect);
+        }
+    });
 
     // Load active layouts from config
     let saved_config = config_store.load();
