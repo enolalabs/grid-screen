@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "gridscreen:default",
+  "description": "Default capability for Grid Screen config window",
+  "windows": ["config-*"],
+  "permissions": [
+    "core:default",
+    "tray:default",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:window:allow-hide"
+  ]
+}

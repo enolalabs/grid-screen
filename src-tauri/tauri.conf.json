@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/NicholasSS13/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "Grid Screen",
+  "version": "0.1.0",
+  "identifier": "com.gridscreen.app",
+  "build": { "frontendDist": "../dist", "devUrl": "http://localhost:5173", "beforeDevCommand": "npm run dev", "beforeBuildCommand": "npm run build" },
+  "app": {
+    "withGlobalTauri": false,
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: https://ipc.localhost; img-src 'self' data:;"
+    },
+    "windows": [],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false
+    }
+  },
+  "plugins": {}
+}
