@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Badge from "./Badge.svelte";
+
   interface Props {
     title: string;
     isPaused: boolean;
@@ -10,7 +12,7 @@
 <header class="topbar">
   <h1 class="topbar-title">{title}</h1>
   {#if isPaused}
-    <span class="paused-badge" role="status">Paused</span>
+    <Badge tone="warning" text="Paused" />
   {/if}
 </header>
 
@@ -33,19 +35,4 @@
     color: var(--text);
   }
 
-  .paused-badge {
-    display: inline-flex;
-    align-items: center;
-    height: 20px;
-    padding: 0 8px;
-    border-radius: var(--radius-control);
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    background: rgba(255, 167, 38, 0.15);
-    color: #ffb74d;
-    border: 1px solid rgba(255, 167, 38, 0.3);
-  }
 </style>

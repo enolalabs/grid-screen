@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { getCurrentState } from "./lib/ipc";
-  import { currentState, savedLayouts } from "./lib/stores";
+  import { currentState, savedLayouts, settings } from "./lib/stores";
   import { notify, toastNotifications } from "./lib/notifications";
   import AppShell from "./lib/components/AppShell.svelte";
+  import StatusRow from "./lib/components/StatusRow.svelte";
   import LayoutEditor from "./routes/LayoutEditor.svelte";
   import LayoutManager from "./routes/LayoutManager.svelte";
   import Settings from "./routes/Settings.svelte";
@@ -82,9 +83,9 @@
     {:else if activeView === "status"}
       <div class="status-page">
         <h2>System Status</h2>
-        <p>Monitors: {initialization.state.monitors.length}</p>
-        <p>Saved layouts: {initialization.state.saved_layouts.length}</p>
-        <p>Paused: {initialization.state.is_paused ? "Yes" : "No"}</p>
+        <StatusRow label="Monitors" value={String(initialization.state.monitors.length)} tone="primary" />
+        <StatusRow label="Saved layouts" value={String(initialization.state.saved_layouts.length)} tone="primary" />
+        <StatusRow label="Paused" value={initialization.state.is_paused ? "Yes" : "No"} tone={initialization.state.is_paused ? "warning" : "muted"} />
       </div>
     {/if}
   {/if}
@@ -149,11 +150,5 @@
     margin: 0 0 12px;
     font-size: 16px;
     font-weight: 600;
-  }
-
-  .status-page p {
-    margin: 4px 0;
-    font-size: 13px;
-    color: var(--text-muted);
   }
 </style>

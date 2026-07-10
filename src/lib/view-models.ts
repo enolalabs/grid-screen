@@ -8,7 +8,7 @@ export function isUsableLayout(layout: { zones: unknown[]; monitor_id: string },
 export function getFirstRunState(state: FrontendState): "onboarding" | "empty" | "recovery" | "ready" {
   if (!state.settings.first_run_completed) return "onboarding";
   if (state.saved_layouts.length === 0) return "empty";
-  if (state.monitors.length === 0) return "recovery";
+  if (state.saved_layouts.length > 0 && !state.saved_layouts.some(l => isUsableLayout(l, state.monitors))) return "recovery";
   return "ready";
 }
 
