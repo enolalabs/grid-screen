@@ -1,99 +1,159 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { getCurrentState, getSettings, saveSettings } from "./lib/ipc";
-  import { currentState, savedLayouts, settings } from "./lib/stores";
-  import { notifications, notify } from "./lib/notifications";
+  import { getCurrentState } from "./lib/ipc";
+  import { currentState, savedLayouts } from "./lib/stores";
+  import { notify, toastNotifications } from "./lib/notifications";
+  import AppShell from "./lib/components/AppShell.svelte";
   import LayoutEditor from "./routes/LayoutEditor.svelte";
   import LayoutManager from "./routes/LayoutManager.svelte";
   import Settings from "./routes/Settings.svelte";
+  import type { AppView, InitializationState } from "./lib/types";
   import { listen } from "@tauri-apps/api/event";
 
-  let activeTab = $state<"editor" | "layouts" | "settings">("editor");
-  let showOnboarding = $state(false);
-  let notifs = $state<Array<{id: string, message: string, type: string}>>([]);
+  let activeView = $state<AppView>("workspace");
+  let initialization = $state<InitializationState>({ status: "loading" });
+  let toasts = $state<Array<{ id: string; message: string; type: "info" | "warning" | "error" }>>([]);
 
-  onMount(async () => {
+  async function loadState() {
+    initialization = { status: "loading" };
     try {
       const state = await getCurrentState();
       currentState.set(state);
       savedLayouts.set(state.saved_layouts);
       settings.set(state.settings);
+      initialization = { status: "loaded", state };
 
       if (!state.settings.first_run_completed) {
-        showOnboarding = true;
+        activeView = "workspace";
+      } else if (state.saved_layouts.length === 0) {
+        activeView = "workspace";
+      } else if (state.monitors.length === 0) {
+        activeView = "status";
       }
     } catch (e) {
-      console.error("Failed to load state:", e);
+      const message = e instanceof Error ? e.message : String(e);
+      initialization = { status: "failed", message };
     }
+  }
 
-    const unsubNotifs = notifications.subscribe(n => notifs = n);
+  onMount(async () => {
+    const unsubToasts = toastNotifications.subscribe(n => toasts = n);
 
-    const unlistenEvent = await listen<{level: string, message: string}>("user-notification", (event) => {
-      const { level, message } = event.payload;
-      notify(message, level as "info" | "warning" | "error");
-    });
+    const unlistenEvent = await listen<{ level: string; message: string }>(
+      "user-notification",
+      (event) => {
+        const { level, message } = event.payload;
+        notify(message, level as "info" | "warning" | "error");
+      },
+    );
+
+    await loadState();
 
     return () => {
-      unsubNotifs();
+      unsubToasts();
       unlistenEvent();
     };
   });
 
-  async function dismissOnboarding() {
-    showOnboarding = false;
-    const s = await getSettings();
-    s.first_run_completed = true;
-    await saveSettings(s);
+  function handleNavigate(view: AppView) {
+    activeView = view;
+  }
+
+  async   function handleRetry() {
+    await loadState();
   }
 </script>
 
-<div class="app-shell">
-  <nav class="tab-bar">
-    <button class:active={activeTab === "editor"} onclick={() => activeTab = "editor"}>Editor</button>
-    <button class:active={activeTab === "layouts"} onclick={() => activeTab = "layouts"}>Layouts</button>
-    <button class:active={activeTab === "settings"} onclick={() => activeTab = "settings"}>Settings</button>
-  </nav>
-  <main class="content">
-    {#if activeTab === "editor"}
+<AppShell
+  activeView={activeView}
+  {initialization}
+  isPaused={initialization.status === "loaded" ? initialization.state.is_paused : false}
+  monitorCount={initialization.status === "loaded" ? initialization.state.monitors.length : 0}
+  onNavigate={handleNavigate}
+  onRetry={handleRetry}
+>
+  {#if initialization.status === "loaded"}
+    {#if activeView === "workspace"}
       <LayoutEditor />
-    {:else if activeTab === "layouts"}
+    {:else if activeView === "layouts"}
       <LayoutManager />
-    {:else}
+    {:else if activeView === "settings"}
       <Settings />
+    {:else if activeView === "status"}
+      <div class="status-page">
+        <h2>System Status</h2>
+        <p>Monitors: {initialization.state.monitors.length}</p>
+        <p>Saved layouts: {initialization.state.saved_layouts.length}</p>
+        <p>Paused: {initialization.state.is_paused ? "Yes" : "No"}</p>
+      </div>
     {/if}
-  </main>
-</div>
-
-{#if showOnboarding}
-  <div class="onboarding-overlay" role="dialog" aria-label="First-run guide">
-    <div class="onboarding-card">
-      <h3>Welcome to Grid Screen</h3>
-      <p>Drag on a monitor to create your first zone.</p>
-      <p>Then drag any application window into a zone to snap it into place.</p>
-      <button onclick={dismissOnboarding}>Got it</button>
-    </div>
-  </div>
-{/if}
+  {/if}
+</AppShell>
 
 <div class="toast-container" role="status" aria-live="polite">
-  {#each notifs as n (n.id)}
+  {#each toasts as n (n.id)}
     <div class="toast toast-{n.type}">{n.message}</div>
   {/each}
 </div>
 
 <style>
-  .app-shell { display: flex; flex-direction: column; height: 100vh; font-family: system-ui; }
-  .tab-bar { display: flex; gap: 4px; padding: 8px 12px; background: #1e1e2e; border-bottom: 1px solid #313244; }
-  .tab-bar button { padding: 6px 16px; border: none; background: transparent; color: #cdd6f4; cursor: pointer; border-radius: 4px; }
-  .tab-bar button.active { background: #7C3AED; color: white; }
-  .content { flex: 1; overflow: auto; padding: 16px; background: #181825; color: #cdd6f4; }
-  .onboarding-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
-  .onboarding-card { background: #1e1e2e; padding: 24px 32px; border-radius: 12px; max-width: 400px; text-align: center; }
-  .onboarding-card button { margin-top: 16px; padding: 8px 24px; background: #7C3AED; color: white; border: none; border-radius: 6px; cursor: pointer; }
-  .toast-container { position: fixed; bottom: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
-  .toast { padding: 10px 20px; border-radius: 6px; font-size: 14px; animation: slideIn 0.3s ease; }
-  .toast-info { background: #313244; color: #cdd6f4; }
-  .toast-warning { background: #f9e2af; color: #1e1e2e; }
-  .toast-error { background: #f38ba8; color: #1e1e2e; }
-  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .toast-container {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 200;
+  }
+
+  .toast {
+    padding: 10px 20px;
+    border-radius: var(--radius-control);
+    font-family: var(--sans);
+    font-size: 13px;
+    animation: slideIn 0.3s ease;
+  }
+
+  .toast-info {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+
+  .toast-warning {
+    background: rgba(255, 167, 38, 0.15);
+    color: #ffb74d;
+    border: 1px solid rgba(255, 167, 38, 0.3);
+  }
+
+  .toast-error {
+    background: rgba(244, 67, 54, 0.15);
+    color: #e57373;
+    border: 1px solid rgba(244, 67, 54, 0.3);
+  }
+
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toast { animation: none; }
+  }
+
+  .status-page {
+    padding: 16px 0;
+  }
+
+  .status-page h2 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .status-page p {
+    margin: 4px 0;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
 </style>

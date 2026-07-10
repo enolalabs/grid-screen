@@ -40,6 +40,7 @@ export interface AppSettings {
   accent_color: string;
   language: string;
   first_run_completed: boolean;
+  default_layout_id: string | null;
 }
 
 export interface FrontendState {
@@ -49,3 +50,10 @@ export interface FrontendState {
   is_paused: boolean;
   settings: AppSettings;
 }
+
+export type AppView = "workspace" | "layouts" | "settings" | "status";
+
+export type InitializationState =
+  | { status: "loading" }
+  | { status: "loaded"; state: FrontendState }
+  | { status: "failed"; message: string };

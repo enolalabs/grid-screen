@@ -1,16 +1,32 @@
-import { writable } from "svelte/store";
+import { writable, get } from "svelte/store";
 
 export interface Notification {
   id: string;
   message: string;
   type: "info" | "warning" | "error";
 }
-export const notifications = writable<Notification[]>([]);
+
+export const toastNotifications = writable<Notification[]>([]);
+export const notificationHistory = writable<Notification[]>([]);
 
 export function notify(message: string, type: "info" | "warning" | "error" = "info") {
   const id = crypto.randomUUID();
-  notifications.update(n => [...n, { id, message, type }]);
+  const entry: Notification = { id, message, type };
+
+  toastNotifications.update(n => [...n, entry]);
   setTimeout(() => {
-    notifications.update(n => n.filter(x => x.id !== id));
+    toastNotifications.update(n => n.filter(x => x.id !== id));
   }, 5000);
+
+  notificationHistory.update(n => {
+    const latest = n[0];
+    if (latest && latest.message === message && latest.type === type) return n;
+    const next = [{ ...entry, id: crypto.randomUUID() }, ...n];
+    if (next.length > 100) next.length = 100;
+    return next;
+  });
+}
+
+export function clearNotificationHistory() {
+  notificationHistory.set([]);
 }
