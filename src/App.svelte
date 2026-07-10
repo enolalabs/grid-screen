@@ -2,18 +2,19 @@
   import { onMount } from "svelte";
   import { getCurrentState, saveSettings } from "./lib/ipc";
   import { currentState, savedLayouts, settings } from "./lib/stores";
-  import { notify, toastNotifications } from "./lib/notifications";
+  import { notify, toastNotifications, notificationHistory, clearNotificationHistory } from "./lib/notifications";
   import AppShell from "./lib/components/AppShell.svelte";
-  import StatusRow from "./lib/components/StatusRow.svelte";
   import LayoutEditor from "./routes/LayoutEditor.svelte";
   import LayoutManager from "./routes/LayoutManager.svelte";
   import Settings from "./routes/Settings.svelte";
-  import type { AppView, InitializationState } from "./lib/types";
+  import SystemStatus from "./routes/SystemStatus.svelte";
+  import type { AppView, InitializationState, Notification } from "./lib/types";
   import { listen } from "@tauri-apps/api/event";
 
   let activeView = $state<AppView>("workspace");
   let initialization = $state<InitializationState>({ status: "loading" });
   let toasts = $state<Array<{ id: string; message: string; type: "info" | "warning" | "error" }>>([]);
+  let historyNotifications = $state<Notification[]>([]);
 
   async function loadState() {
     initialization = { status: "loading" };
@@ -39,6 +40,7 @@
 
   onMount(async () => {
     const unsubToasts = toastNotifications.subscribe(n => toasts = n);
+    const unsubHistory = notificationHistory.subscribe(n => historyNotifications = n);
 
     const unlistenEvent = await listen<{ level: string; message: string }>(
       "user-notification",
@@ -52,6 +54,7 @@
 
     return () => {
       unsubToasts();
+      unsubHistory();
       unlistenEvent();
     };
   });
@@ -89,12 +92,14 @@
     {:else if activeView === "settings"}
       <Settings />
     {:else if activeView === "status"}
-      <div class="status-page">
-        <h2>System Status</h2>
-        <StatusRow label="Monitors" value={String(initialization.state.monitors.length)} tone="primary" />
-        <StatusRow label="Saved layouts" value={String(initialization.state.saved_layouts.length)} tone="primary" />
-        <StatusRow label="Paused" value={initialization.state.is_paused ? "Yes" : "No"} tone={initialization.state.is_paused ? "warning" : "muted"} />
-      </div>
+      <SystemStatus
+        state={initialization.state}
+        {initialization}
+        history={historyNotifications}
+        onRetry={handleRetry}
+        onClearHistory={clearNotificationHistory}
+        onNavigate={handleNavigate}
+      />
     {/if}
   {/if}
 </AppShell>
@@ -148,15 +153,5 @@
 
   @media (prefers-reduced-motion: reduce) {
     .toast { animation: none; }
-  }
-
-  .status-page {
-    padding: 16px 0;
-  }
-
-  .status-page h2 {
-    margin: 0 0 12px;
-    font-size: 16px;
-    font-weight: 600;
   }
 </style>
