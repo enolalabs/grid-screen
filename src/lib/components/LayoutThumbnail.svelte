@@ -9,13 +9,26 @@
 
   let { layoutId, zones, label }: Props = $props();
 
+  function clamp(n: number): number {
+    if (!isFinite(n)) return 0;
+    return Math.max(0, Math.min(1, n));
+  }
+
   const zoneKey = $derived(String(zones.map(z => `${z.x},${z.y},${z.width},${z.height}`).join("|")));
   const memoKey = $derived(`${layoutId}:${zoneKey}`);
+
+  const clampedZones = $derived(zones.map(z => ({
+    ...z,
+    x: clamp(z.x),
+    y: clamp(z.y),
+    width: Math.max(1 / 12, clamp(z.width)),
+    height: Math.max(1 / 12, clamp(z.height)),
+  })));
 </script>
 
 <div class="thumbnail" data-memo={memoKey} aria-label={label}>
   <div class="thumbnail-panel">
-    {#each zones as zone (zone.id)}
+    {#each clampedZones as zone (zone.id)}
       <div
         class="thumbnail-zone"
         style="left: {zone.x * 100}%; top: {zone.y * 100}%; width: {zone.width * 100}%; height: {zone.height * 100}%;"

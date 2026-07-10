@@ -27,14 +27,5 @@
     "windows": {
       "nsis": { "installMode": "currentUser" }
     }
-  },
-  "plugins": {
-    "updater": {
-      "endpoints": [
-        "https://github.com/enolalabs/grid-screen/releases/latest/download/latest.json"
-      ],
-      "pubkey": "<insert-signing-pubkey-after-first-release>",
-      "windows": { "installMode": "passive" }
-    }
   }
 }

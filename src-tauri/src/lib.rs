@@ -13,9 +13,9 @@ use std::sync::{Arc, RwLock};
 
 use arc_swap::ArcSwap;
 use tauri::{
-    Manager, WebviewWindowBuilder,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
+    Manager, WebviewWindowBuilder,
 };
 use tauri_plugin_shell::ShellExt;
 
@@ -44,10 +44,7 @@ fn get_current_state(state: tauri::State<AppState>) -> FrontendState {
 }
 
 #[tauri::command]
-fn apply_layout(
-    state: tauri::State<AppState>,
-    layout: Layout,
-) -> Result<(), String> {
+fn apply_layout(state: tauri::State<AppState>, layout: Layout) -> Result<(), String> {
     let mut layouts = state.active_layouts.load().to_vec();
     layouts.retain(|l| l.monitor_id != layout.monitor_id);
     layouts.push(layout);
@@ -66,7 +63,14 @@ fn save_layout(
     let config_store = ConfigStore::new(app_config_dir());
     let saved_layouts = &state.app_config.read().unwrap().saved_layouts;
     let arrangement_id = monitor_mgr.arrangement_id();
-    LayoutManager::save_layout(&name, zones, monitor_id, &arrangement_id, &config_store, saved_layouts)?;
+    LayoutManager::save_layout(
+        &name,
+        zones,
+        monitor_id,
+        &arrangement_id,
+        &config_store,
+        saved_layouts,
+    )?;
     Ok(())
 }
 
@@ -102,7 +106,8 @@ fn save_settings(
     platform_api: tauri::State<Arc<dyn PlatformApi>>,
     settings: AppSettings,
 ) -> Result<(), String> {
-    let auto_start_changed = settings.auto_start != state.app_config.read().unwrap().settings.auto_start;
+    let auto_start_changed =
+        settings.auto_start != state.app_config.read().unwrap().settings.auto_start;
     let mut config = state.app_config.write().unwrap();
     config.settings = settings.clone();
     if auto_start_changed {
@@ -112,10 +117,7 @@ fn save_settings(
 }
 
 #[tauri::command]
-fn set_default_layout(
-    state: tauri::State<AppState>,
-    layout_id: uuid::Uuid,
-) -> Result<(), String> {
+fn set_default_layout(state: tauri::State<AppState>, layout_id: uuid::Uuid) -> Result<(), String> {
     let mut config = state.app_config.write().unwrap();
     config.settings.default_layout_id = Some(layout_id);
     Ok(())
@@ -135,6 +137,7 @@ pub fn run() {
 
     let config_store = ConfigStore::new(config_dir.clone());
     let loaded_config = config_store.load();
+    let show_config_on_start = !loaded_config.settings.first_run_completed;
 
     let app_state = AppState {
         monitors: Arc::new(ArcSwap::from_pointee(vec![])),
@@ -152,6 +155,9 @@ pub fn run() {
 
     // MonitorManager: event-driven + 30s safety-net polling
     let monitor_manager = Arc::new(MonitorManager::new(platform_api.clone()));
+    app_state
+        .monitors
+        .store(Arc::new(monitor_manager.all_monitors()));
     let monitors_arc = app_state.monitors.clone();
     {
         let mm = monitor_manager.clone();
@@ -162,7 +168,9 @@ pub fn run() {
     }
 
     // ZoneOverlay: shared for access from drag detector callbacks
-    let overlay = Arc::new(std::sync::Mutex::new(zone_overlay::ZoneOverlay::new(platform_api.clone())));
+    let overlay = Arc::new(std::sync::Mutex::new(zone_overlay::ZoneOverlay::new(
+        platform_api.clone(),
+    )));
 
     // DragDetector: event-driven drag processing
     let (snap_tx, snap_rx) = std::sync::mpsc::channel::<SnapEvent>();
@@ -199,14 +207,24 @@ pub fn run() {
     let snap_api = platform_api.clone();
     std::thread::spawn(move || {
         for snap in snap_rx {
-            tracing::debug!("Snapping window {:?} to {:?}", snap.window_handle, snap.zone_rect);
+            tracing::debug!(
+                "Snapping window {:?} to {:?}",
+                snap.window_handle,
+                snap.zone_rect
+            );
             snap_api.move_window(snap.window_handle, snap.zone_rect);
         }
     });
 
     // Load active layouts from config
     let saved_config = config_store.load();
-    *app_state.app_config.write().unwrap().saved_layouts.write().unwrap() = saved_config.layouts.clone();
+    *app_state
+        .app_config
+        .write()
+        .unwrap()
+        .saved_layouts
+        .write()
+        .unwrap() = saved_config.layouts.clone();
     for layout in &saved_config.layouts {
         let active = Layout {
             zones: layout.zones.clone(),
@@ -220,7 +238,6 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(app_state)
         .manage(platform_api.clone())
         .manage(monitor_manager.clone())
@@ -236,7 +253,7 @@ pub fn run() {
             set_default_layout,
         ])
         .setup(move |app| {
-            let _config_window = WebviewWindowBuilder::new(
+            let config_window = WebviewWindowBuilder::new(
                 app,
                 "config-main",
                 tauri::WebviewUrl::App("index.html".into()),
@@ -258,39 +275,45 @@ pub fn run() {
                 .build()?;
 
             let dd = drag_detector.clone();
-            let dd_pause = drag_detector.clone();
 
-            let tray = TrayIconBuilder::new()
+            // `build` registers a retained copy with Tauri's tray manager; the
+            // local binding is intentionally unused after that registration.
+            let _tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .tooltip("Grid Screen")
-                .on_menu_event(move |app, event| {
-                    match event.id.as_ref() {
-                        "configure" => {
-                            if let Some(w) = app.get_webview_window("config-main") {
-                                let _ = w.show();
-                                let _ = w.set_focus();
-                            }
+                .on_menu_event(move |app, event| match event.id.as_ref() {
+                    "configure" => {
+                        if let Some(w) = app.get_webview_window("config-main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
                         }
-                        "pause" => {
-                            let paused = !dd.is_paused();
-                            dd.set_paused(paused);
-                        }
-                        "view_logs" => {
-                            let log_file = dirs::config_dir()
-                                .unwrap_or_default()
-                                .join("grid-screen")
-                                .join("grid-screen.log");
-                            if log_file.exists() {
-                                let _ = app.shell().open(log_file.to_string_lossy().as_ref(), None);
-                            }
-                        }
-                        "quit" => {
-                            app.exit(0);
-                        }
-                        _ => {}
                     }
+                    "pause" => {
+                        let paused = !dd.is_paused();
+                        dd.set_paused(paused);
+                    }
+                    "view_logs" => {
+                        let log_file = dirs::config_dir()
+                            .unwrap_or_default()
+                            .join("grid-screen")
+                            .join("grid-screen.log");
+                        if log_file.exists() {
+                            let _ = app.shell().open(log_file.to_string_lossy().as_ref(), None);
+                        }
+                    }
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
                 })
                 .build(app)?;
+
+            // A tray-only launch is invisible on desktops without a tray (for
+            // example, stock GNOME). Make the first-run onboarding reachable.
+            if show_config_on_start {
+                config_window.show()?;
+                config_window.set_focus()?;
+            }
 
             tracing::info!("Grid Screen started successfully");
             Ok(())
