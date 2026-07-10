@@ -124,7 +124,7 @@ impl PlatformApi for HyprlandPlatformApi {
         let mut result = Vec::new();
         for (i, m) in monitors.iter().enumerate() {
             result.push(Monitor {
-                id: MonitorId(uuid::Uuid::new_v4()),
+                id: MonitorId::from_name(&m.name),
                 name: m.name.clone(),
                 x: m.x,
                 y: m.y,

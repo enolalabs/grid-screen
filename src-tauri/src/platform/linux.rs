@@ -129,7 +129,7 @@ impl LinuxPlatformApi {
             };
 
             monitors.push(Monitor {
-                id: MonitorId(uuid::Uuid::new_v4()),
+                id: MonitorId::from_name(&name),
                 name,
                 x: crtc.x as i32,
                 y: crtc.y as i32,
@@ -155,7 +155,7 @@ impl LinuxPlatformApi {
         let mut monitors = Vec::new();
         for (i, info) in reply.screen_info.iter().enumerate() {
             monitors.push(Monitor {
-                id: MonitorId(uuid::Uuid::new_v4()),
+                id: MonitorId::from_name(&format!("Xinerama-{}", i)),
                 name: format!("Xinerama-{}", i),
                 x: info.x_org as i32,
                 y: info.y_org as i32,
@@ -183,7 +183,7 @@ impl PlatformApi for LinuxPlatformApi {
         }
         let screen = &self.conn.setup().roots[self.screen_num];
         vec![Monitor {
-            id: MonitorId(uuid::Uuid::new_v4()),
+            id: MonitorId::from_name("Primary"),
             name: "Primary".into(),
             x: 0,
             y: 0,

@@ -360,7 +360,7 @@ mod windows_impl {
         {
             let name = String::from_utf16_lossy(&info.szDevice);
             monitors.push(Monitor {
-                id: MonitorId(uuid::Uuid::new_v4()),
+                id: MonitorId::from_name(&name),
                 name,
                 x: info.monitorInfo.rcMonitor.left,
                 y: info.monitorInfo.rcMonitor.top,

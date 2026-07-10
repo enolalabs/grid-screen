@@ -16,6 +16,19 @@ pub struct Monitor {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MonitorId(pub Uuid);
 
+impl MonitorId {
+    /// Create a stable, deterministic ID from the monitor's unique name.
+    /// Uses UUID v5 (namespace-based) so the same monitor always gets the same ID.
+    pub fn from_name(name: &str) -> Self {
+        // Custom namespace for Grid Screen monitor IDs
+        const GS_MONITOR_NS: Uuid = Uuid::from_bytes([
+            0x6b, 0xa7, 0xb8, 0x10, 0x9d, 0xad, 0x11, 0xd1,
+            0x80, 0xb4, 0x00, 0xc0, 0x4f, 0xd4, 0x30, 0xc8,
+        ]);
+        Self(uuid::Uuid::new_v5(&GS_MONITOR_NS, name.as_bytes()))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Window {
     pub handle: WindowHandle,

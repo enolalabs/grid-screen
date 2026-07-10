@@ -89,7 +89,7 @@ mod tests {
     #[test]
     fn test_zone_effective_rect() {
         let monitor = Monitor {
-            id: MonitorId(uuid::Uuid::new_v4()),
+            id: MonitorId::from_name("test"),
             name: "test".into(),
             x: 0, y: 0, width: 1920, height: 1080, dpi_scale: 1.0, is_primary: true,
         };
@@ -108,7 +108,7 @@ mod tests {
     #[test]
     fn test_zone_contains() {
         let monitor = Monitor {
-            id: MonitorId(uuid::Uuid::new_v4()),
+            id: MonitorId::from_name("test"),
             name: "test".into(),
             x: 0, y: 0, width: 1000, height: 1000, dpi_scale: 1.0, is_primary: true,
         };
