@@ -147,33 +147,8 @@ pub fn run() {
         }),
     };
 
-    // Platform API initialization
-    #[cfg(target_os = "linux")]
-    let platform_api: Arc<dyn PlatformApi> = {
-        match platform::LinuxPlatformApi::new() {
-            Ok(api) => {
-                tracing::info!("X11 platform API initialized");
-                Arc::new(api)
-            }
-            Err(e) => {
-                tracing::error!("Failed to initialize X11: {}. Falling back to mock.", e);
-                Arc::new(platform::mock::MockPlatformApi::new())
-            }
-        }
-    };
-    #[cfg(target_os = "windows")]
-    let platform_api: Arc<dyn PlatformApi> = {
-        match platform::WindowsPlatformApi::new() {
-            Ok(api) => {
-                tracing::info!("Windows platform API initialized");
-                Arc::new(api)
-            }
-            Err(e) => {
-                tracing::error!("Failed to init Windows platform: {}. Falling back.", e);
-                Arc::new(platform::mock::MockPlatformApi::new())
-            }
-        }
-    };
+    // Platform API initialization (auto-detect X11, Hyprland, or Windows)
+    let platform_api: Arc<dyn PlatformApi> = platform::create_platform_api();
 
     // MonitorManager: event-driven + 30s safety-net polling
     let monitor_manager = Arc::new(MonitorManager::new(platform_api.clone()));

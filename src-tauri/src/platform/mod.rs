@@ -4,7 +4,13 @@ pub mod mock;
 pub mod linux;
 
 #[cfg(target_os = "linux")]
+pub mod hyprland;
+
+#[cfg(target_os = "linux")]
 pub use linux::LinuxPlatformApi;
+
+#[cfg(target_os = "linux")]
+pub use hyprland::HyprlandPlatformApi;
 
 #[cfg(target_os = "windows")]
 pub mod windows;
@@ -28,6 +34,51 @@ pub trait PlatformApi: Send + Sync {
     fn destroy_overlay_window(&self, handle: OverlayHandle);
     fn set_autostart(&self, enabled: bool) -> Result<(), String>;
 }
+
+/// Create the best platform API for the current session.
+/// On Linux, prefers HyprlandPlatformApi when running under Hyprland,
+/// falls back to LinuxPlatformApi (X11).
+#[cfg(target_os = "linux")]
+pub fn create_platform_api() -> Arc<dyn PlatformApi> {
+    if hyprland::is_hyprland_session() {
+        match HyprlandPlatformApi::new() {
+            Ok(api) => {
+                tracing::info!("Hyprland platform API initialized");
+                return Arc::new(api);
+            }
+            Err(e) => {
+                tracing::warn!("Failed to initialize Hyprland API ({}), falling back to X11", e);
+            }
+        }
+    }
+    match LinuxPlatformApi::new() {
+        Ok(api) => {
+            tracing::info!("X11 platform API initialized");
+            Arc::new(api)
+        }
+        Err(e) => {
+            tracing::error!("Failed to initialize X11: {}. Falling back to mock.", e);
+            Arc::new(mock::MockPlatformApi::new())
+        }
+    }
+}
+
+/// Create the best platform API for the current session (Windows).
+#[cfg(target_os = "windows")]
+pub fn create_platform_api() -> Arc<dyn PlatformApi> {
+    match WindowsPlatformApi::new() {
+        Ok(api) => {
+            tracing::info!("Windows platform API initialized");
+            Arc::new(api)
+        }
+        Err(e) => {
+            tracing::error!("Failed to init Windows platform: {}. Falling back.", e);
+            Arc::new(mock::MockPlatformApi::new())
+        }
+    }
+}
+
+use std::sync::Arc;
 
 #[cfg(test)]
 mod tests {
