@@ -32,9 +32,7 @@ impl MonitorManager {
         thread::spawn(move || loop {
             thread::sleep(Duration::from_secs(30));
             let current = api_poll.enumerate_monitors();
-            let current_ids: Vec<_> = current.iter().map(|m| m.id).collect();
-            let prev_ids: Vec<_> = monitors3.load().iter().map(|m| m.id).collect();
-            if current_ids != prev_ids || current.len() != prev_ids.len() {
+            if current.as_slice() != monitors3.load().as_ref().as_slice() {
                 tracing::info!("Safety-net polling detected monitor change");
                 monitors3.store(Arc::new(current));
             }
@@ -44,16 +42,19 @@ impl MonitorManager {
     }
 
     pub fn get_monitor_at(&self, x: i32, y: i32) -> Option<Monitor> {
-        self.monitors.load().iter().find(|m| {
-            x >= m.x && x < m.x + m.width as i32 && y >= m.y && y < m.y + m.height as i32
-        }).cloned()
+        self.monitors
+            .load()
+            .iter()
+            .find(|m| x >= m.x && x < m.x + m.width as i32 && y >= m.y && y < m.y + m.height as i32)
+            .cloned()
     }
 
     pub fn arrangement_id(&self) -> String {
         let mons = self.monitors.load();
-        let mut parts: Vec<String> = mons.iter().map(|m| {
-            format!("{}:{}x{}@{}x{}", m.name, m.width, m.height, m.x, m.y)
-        }).collect();
+        let mut parts: Vec<String> = mons
+            .iter()
+            .map(|m| format!("{}:{}x{}@{}x{}", m.name, m.width, m.height, m.x, m.y))
+            .collect();
         parts.sort();
         parts.join("|")
     }

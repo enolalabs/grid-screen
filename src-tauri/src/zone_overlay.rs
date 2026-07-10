@@ -46,7 +46,12 @@ impl ZoneOverlay {
         }
     }
 
-    pub fn update(&mut self, highlighted_zone: Option<&Zone>, ghost_rect: Option<types::Rect>, monitor: &Monitor) {
+    pub fn update(
+        &mut self,
+        highlighted_zone: Option<&Zone>,
+        ghost_rect: Option<types::Rect>,
+        monitor: &Monitor,
+    ) {
         let handle = match &self.active_overlay {
             Some(h) => h,
             None => return,
@@ -69,7 +74,9 @@ impl ZoneOverlay {
 
         // Clear and reuse pre-allocated pixmap
         pixmap.fill_path(
-            &PathBuilder::from_rect(Rect::from_xywh(0.0, 0.0, monitor.width as f32, monitor.height as f32).unwrap()),
+            &PathBuilder::from_rect(
+                Rect::from_xywh(0.0, 0.0, monitor.width as f32, monitor.height as f32).unwrap(),
+            ),
             &Paint::default(),
             tiny_skia::FillRule::Winding,
             Transform::identity(),
@@ -80,40 +87,79 @@ impl ZoneOverlay {
             let mut paint = Paint::default();
             paint.set_color_rgba8(124, 58, 237, 51);
             let rect = zone.effective_rect(monitor);
-            let path = PathBuilder::from_rect(Rect::from_xywh(
-                rect.x as f32, rect.y as f32,
-                rect.width as f32, rect.height as f32,
-            ).unwrap());
-            pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+            let path = PathBuilder::from_rect(
+                Rect::from_xywh(
+                    rect.x as f32,
+                    rect.y as f32,
+                    rect.width as f32,
+                    rect.height as f32,
+                )
+                .unwrap(),
+            );
+            pixmap.fill_path(
+                &path,
+                &paint,
+                tiny_skia::FillRule::Winding,
+                Transform::identity(),
+                None,
+            );
 
             let mut border_paint = Paint::default();
             border_paint.set_color_rgba8(124, 58, 237, 255);
             let mut border_stroke = Stroke::default();
             border_stroke.width = 2.0 * (monitor.dpi_scale as f32).max(1.0);
-            pixmap.stroke_path(&path, &border_paint, &border_stroke, Transform::identity(), None);
+            pixmap.stroke_path(
+                &path,
+                &border_paint,
+                &border_stroke,
+                Transform::identity(),
+                None,
+            );
         }
 
         if let Some(rect) = ghost_rect {
             let mut paint = Paint::default();
             paint.set_color_rgba8(124, 58, 237, 128);
-            let path = PathBuilder::from_rect(Rect::from_xywh(
-                rect.x as f32, rect.y as f32,
-                rect.width as f32, rect.height as f32,
-            ).unwrap());
-            pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+            let path = PathBuilder::from_rect(
+                Rect::from_xywh(
+                    rect.x as f32,
+                    rect.y as f32,
+                    rect.width as f32,
+                    rect.height as f32,
+                )
+                .unwrap(),
+            );
+            pixmap.fill_path(
+                &path,
+                &paint,
+                tiny_skia::FillRule::Winding,
+                Transform::identity(),
+                None,
+            );
 
             let mut border_paint = Paint::default();
             border_paint.set_color_rgba8(124, 58, 237, 128);
             let mut border_stroke = Stroke::default();
             border_stroke.width = 2.0 * (monitor.dpi_scale as f32).max(1.0);
-            pixmap.stroke_path(&path, &border_paint, &border_stroke, Transform::identity(), None);
+            pixmap.stroke_path(
+                &path,
+                &border_paint,
+                &border_stroke,
+                Transform::identity(),
+                None,
+            );
         }
 
         // NOTE: tiny-skia Pixmap data format is platform-dependent.
         // On X11: native-endian ARGB. On Windows: premultiplied BGRA.
         // Pixel format conversion may be needed before overlay_present.
-        self.api.overlay_present(handle, pixmap.data(), monitor.width, monitor.height);
-        tracing::trace!("Overlay frame presented {}x{}", monitor.width, monitor.height);
+        self.api
+            .overlay_present(handle, pixmap.data(), monitor.width, monitor.height);
+        tracing::trace!(
+            "Overlay frame presented {}x{}",
+            monitor.width,
+            monitor.height
+        );
     }
 
     pub fn hide(&mut self) {

@@ -70,7 +70,7 @@
       </label>
       <label class="setting">
         <span class="setting-label">Default layout ID</span>
-        <input type="text" bind:value={settings.default_layout_id} placeholder="None" />
+        <input type="text" value={settings.default_layout_id ?? ""} placeholder="None" oninput={(e) => settings.default_layout_id = (e.target as HTMLInputElement).value || null} />
       </label>
     </Panel>
 

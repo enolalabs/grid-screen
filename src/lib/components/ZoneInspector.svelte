@@ -33,7 +33,7 @@
 
   function handleNameKeydown(e: KeyboardEvent) {
     if (e.key === "Enter") handleNameSubmit();
-    if (e.key === "Escape" && zone) editName = zone.name;
+    if (e.key === "Escape" && zone) { editName = zone.name; }
   }
 </script>
 
@@ -89,8 +89,9 @@
           max="64"
           value={zone.gap}
           oninput={(e: Event) => {
+            if (!zone) return;
             const v = parseInt((e.target as HTMLInputElement).value, 10);
-            if (!isNaN(v)) onChange(zone!.id, { gap: v });
+            if (!isNaN(v)) onChange(zone.id, { gap: v });
           }}
         />
       </label>
@@ -103,8 +104,9 @@
           max="64"
           value={zone.margin}
           oninput={(e: Event) => {
+            if (!zone) return;
             const v = parseInt((e.target as HTMLInputElement).value, 10);
-            if (!isNaN(v)) onChange(zone!.id, { margin: v });
+            if (!isNaN(v)) onChange(zone.id, { margin: v });
           }}
         />
       </label>

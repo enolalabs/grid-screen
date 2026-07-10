@@ -58,7 +58,7 @@ The script performs these steps automatically:
 1. Detects and installs system dependencies (libgtk-3, libwebkit2gtk, libx11...)
 2. Installs Rust (via rustup, if missing)
 3. Clones the repository to `~/.local/share/grid-screen`
-4. Builds the release binary (`cargo build --release`)
+4. Builds the release binary (`cargo build --release --features custom-protocol`)
 5. Copies the binary to `~/.local/bin/grid-screen`
 6. Creates a `.desktop` file in `~/.config/autostart/` for auto-launch
 7. Creates a desktop entry in `~/.local/share/applications/` for app menu
@@ -349,7 +349,7 @@ cargo fmt --check          # Check Rust formatting
 cargo clippy -- -D warnings # Lint Rust
 cargo test                  # Run all Rust tests
 cargo bench                 # Run benchmarks
-cargo build --release       # Production build
+cargo build --release --features custom-protocol # Production build
 
 # Frontend
 npx vitest run              # Run component tests
@@ -515,7 +515,7 @@ GitHub Actions (`ubuntu-latest` + `windows-latest` matrix):
 4. `cargo audit`
 5. `cargo deny check`
 6. `npm ci && npx vitest run`
-7. `cargo build --release`
+7. `cargo build --release --features custom-protocol`
 
 ### Distribution Formats
 

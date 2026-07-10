@@ -2,6 +2,7 @@
 
 > Reference-only directory. Downloaded HTML and screenshots are excluded from Vite/Tauri runtime inputs.
 > No Stitch-hosted URL appears in `src/` or `src-tauri/`.
+> Note: Downloaded screenshots are 512×410 preview thumbnails; the Stitch source screens were authored at 2560×2048.
 
 ## Project Metadata
 

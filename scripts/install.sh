@@ -149,7 +149,7 @@ if [[ "$INSTALL_MODE" == "deps" ]]; then
     echo "    cd $INSTALL_DIR"
     echo "    npm install"
     echo "    npm run build"
-    echo "    cargo build --release --manifest-path src-tauri/Cargo.toml"
+    echo "    cargo build --release --features custom-protocol --manifest-path src-tauri/Cargo.toml"
     echo ""
     ok "Installation complete (deps only)!"
     exit 0
@@ -170,11 +170,11 @@ npm run build --silent 2>&1 | tail -3
 
 if [[ "$INSTALL_MODE" == "dev" ]]; then
     info "Building Rust (debug mode)..."
-    cargo build --manifest-path src-tauri/Cargo.toml 2>&1 | tail -5
+    cargo build --features custom-protocol --manifest-path src-tauri/Cargo.toml 2>&1 | tail -5
     BINARY_PATH="$INSTALL_DIR/src-tauri/target/debug/grid-screen"
 else
     info "Building Rust (release mode)..."
-    cargo build --release --manifest-path src-tauri/Cargo.toml 2>&1 | tail -5
+    cargo build --release --features custom-protocol --manifest-path src-tauri/Cargo.toml 2>&1 | tail -5
     BINARY_PATH="$INSTALL_DIR/src-tauri/target/release/grid-screen"
 fi
 
@@ -221,14 +221,14 @@ Icon=$INSTALL_DIR/src-tauri/icons/icon.png
 Terminal=false
 Categories=Utility;
 StartupNotify=false
-X-GNOME-Autostart-enabled=true"
+X-GNOME-Autostart-enabled=false"
 
 echo "$DESKTOP_FILE" > "$DESKTOP_DIR/grid-screen.desktop"
 echo "$DESKTOP_FILE" > "$AUTOSTART_DIR/grid-screen.desktop"
 chmod +x "$DESKTOP_DIR/grid-screen.desktop" "$AUTOSTART_DIR/grid-screen.desktop"
 
 ok "Desktop entry created"
-ok "Autostart enabled"
+ok "Desktop entry created (autostart is disabled by default)"
 
 # ── Done ─────────────────────────────────────────
 echo ""

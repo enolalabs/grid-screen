@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { currentState, savedLayouts } from "../lib/stores";
   import { listLayouts, deleteLayout, setDefaultLayout, getCurrentState } from "../lib/ipc";
   import type { SavedLayout, FrontendState } from "../lib/types";
@@ -10,6 +10,12 @@
   import Button from "../lib/components/Button.svelte";
   import LayoutThumbnail from "../lib/components/LayoutThumbnail.svelte";
   import EmptyState from "../lib/components/EmptyState.svelte";
+
+  interface Props {
+    onNavigate: (view: string) => void;
+  }
+
+  let { onNavigate }: Props = $props();
 
   let layouts = $state<SavedLayout[]>([]);
   let state = $state<FrontendState | null>(null);
@@ -24,10 +30,9 @@
     layouts = await listLayouts();
   });
 
-  function getActiveLayoutMonitorIds(): string[] {
-    if (!state) return [];
-    return state.active_layouts.map(al => al.monitor_id);
-  }
+  onDestroy(() => {
+    unsubCurrentState();
+  });
 
   async function handleSetDefault(layout: SavedLayout) {
     if (pendingSetDefault) return;
@@ -73,10 +78,7 @@
       title="No layouts saved"
       description="Create a layout in the Workspace to see it here. Saved layouts let you quickly switch between zone arrangements."
       actionLabel="Go to Workspace"
-      onAction={() => {
-        const event = new CustomEvent("navigate", { detail: "workspace" });
-        window.dispatchEvent(event);
-      }}
+      onAction={() => onNavigate("workspace")}
     />
   {:else}
     <div class="layout-grid">
@@ -159,9 +161,4 @@
     margin-top: 12px;
   }
 
-  :global(.layout-gap) {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
 </style>

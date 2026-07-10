@@ -1,14 +1,18 @@
-use std::sync::Arc;
 use grid_screen::monitor_manager::MonitorManager;
 use grid_screen::platform::mock::MockPlatformApi;
-use grid_screen::platform::PlatformApi;
 use grid_screen::types::*;
+use std::sync::Arc;
+use std::thread;
+use std::time::{Duration, Instant};
 
 fn make_monitor(id: &str, x: i32, y: i32, w: u32, h: u32, primary: bool) -> Monitor {
     Monitor {
         id: MonitorId(uuid::Uuid::new_v4()),
         name: id.into(),
-        x, y, width: w, height: h,
+        x,
+        y,
+        width: w,
+        height: h,
         dpi_scale: 1.0,
         is_primary: primary,
     }
@@ -37,6 +41,9 @@ fn test_arrangement_id_changes_on_hotplug() {
     api.add_monitor(make_monitor("m2", 1920, 0, 1920, 1080, false));
     api.send_display_event(DisplayChangeEvent::Connected);
 
-    let id2 = mgr.arrangement_id();
-    assert_ne!(id1, id2);
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while mgr.arrangement_id() == id1 && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert_ne!(id1, mgr.arrangement_id());
 }

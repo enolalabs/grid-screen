@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { getCurrentState, saveSettings } from "./lib/ipc";
+  import { getCurrentState, saveSettings, getSettings } from "./lib/ipc";
   import { currentState, savedLayouts, settings } from "./lib/stores";
   import { notify, toastNotifications, notificationHistory, clearNotificationHistory } from "./lib/notifications";
   import AppShell from "./lib/components/AppShell.svelte";
@@ -63,13 +63,13 @@
     activeView = view;
   }
 
-  async   function handleRetry() {
+  async function handleRetry() {
     await loadState();
   }
 
   async function handleCompleteOnboarding() {
     if (initialization.status !== "loaded") return;
-    const currentSettings = initialization.state.settings;
+    const currentSettings = await getSettings();
     await saveSettings({ ...currentSettings, first_run_completed: true });
     await loadState();
   }

@@ -117,14 +117,25 @@ impl DragDetector {
                         let zones = LayoutManager::get_zones(&monitor, &active_layouts);
                         let mut highlighted: Option<Zone> = None;
                         for zone in &zones {
-                            if zone.contains(cx as f64 - monitor.x as f64, cy as f64 - monitor.y as f64, &monitor) {
+                            if zone.contains(
+                                cx as f64 - monitor.x as f64,
+                                cy as f64 - monitor.y as f64,
+                                &monitor,
+                            ) {
                                 highlighted = Some(zone.clone());
                                 break;
                             }
                         }
 
-                        let ghost = highlighted.as_ref().map(|z| z.effective_rect(&monitor))
-                            .unwrap_or(Rect { x: cx - rect.width as i32 / 2, y: cy - rect.height as i32 / 2, width: rect.width, height: rect.height });
+                        let ghost = highlighted
+                            .as_ref()
+                            .map(|z| z.effective_rect(&monitor))
+                            .unwrap_or(Rect {
+                                x: cx - rect.width as i32 / 2,
+                                y: cy - rect.height as i32 / 2,
+                                width: rect.width,
+                                height: rect.height,
+                            });
 
                         on_update_overlay(highlighted, Some(ghost), &monitor);
                     }
@@ -145,13 +156,20 @@ impl DragDetector {
                         };
                         let zones = LayoutManager::get_zones(&monitor, &active_layouts);
                         let hit_zone = zones.iter().find(|z| {
-                            z.contains(cx as f64 - monitor.x as f64, cy as f64 - monitor.y as f64, &monitor)
+                            z.contains(
+                                cx as f64 - monitor.x as f64,
+                                cy as f64 - monitor.y as f64,
+                                &monitor,
+                            )
                         });
 
                         if let Some(zone) = hit_zone {
                             state.snap_in_progress = true;
                             let zone_rect = zone.effective_rect(&monitor);
-                            let _ = snap_sender.send(SnapEvent { window_handle: handle, zone_rect });
+                            let _ = snap_sender.send(SnapEvent {
+                                window_handle: handle,
+                                zone_rect,
+                            });
                         }
                         // Keep drag_state with snap_in_progress flag to block repeated detection
                         // Clear on next idle (non-DragStart event above)

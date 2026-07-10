@@ -9,7 +9,7 @@
 
   let { activeView, isPaused, onNavigate }: Props = $props();
 
-  const navItems: { view: AppView; label: string; labelStatus?: string }[] = [
+  const navItems: { view: AppView; label: string }[] = [
     { view: "workspace", label: "Workspace" },
     { view: "layouts", label: "Saved Layouts" },
     { view: "settings", label: "Settings" },
@@ -33,6 +33,7 @@
       {#if activeView === "status"}
         <button
           class="nav-item"
+          aria-selected={false}
           tabindex="0"
           role="tab"
           onclick={() => onNavigate(item.view)}

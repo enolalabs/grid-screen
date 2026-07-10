@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Monitor {
     pub id: MonitorId,
     pub name: String,
@@ -22,8 +22,8 @@ impl MonitorId {
     pub fn from_name(name: &str) -> Self {
         // Custom namespace for Grid Screen monitor IDs
         const GS_MONITOR_NS: Uuid = Uuid::from_bytes([
-            0x6b, 0xa7, 0xb8, 0x10, 0x9d, 0xad, 0x11, 0xd1,
-            0x80, 0xb4, 0x00, 0xc0, 0x4f, 0xd4, 0x30, 0xc8,
+            0x6b, 0xa7, 0xb8, 0x10, 0x9d, 0xad, 0x11, 0xd1, 0x80, 0xb4, 0x00, 0xc0, 0x4f, 0xd4,
+            0x30, 0xc8,
         ]);
         Self(uuid::Uuid::new_v5(&GS_MONITOR_NS, name.as_bytes()))
     }
@@ -66,10 +66,20 @@ impl Zone {
         // because X11 reports physical-pixel dimensions for both monitors
         // and cursor coordinates. Scale is applied to gap/margin for high-DPI.
         let scale = monitor.dpi_scale.max(1.0);
-        let mx = monitor.x as f64 + self.x * monitor.width as f64 + self.margin as f64 * scale + (self.gap as f64 * scale / 2.0);
-        let my = monitor.y as f64 + self.y * monitor.height as f64 + self.margin as f64 * scale + (self.gap as f64 * scale / 2.0);
-        let mw = (self.width * monitor.width as f64) - 2.0 * self.margin as f64 * scale - self.gap as f64 * scale;
-        let mh = (self.height * monitor.height as f64) - 2.0 * self.margin as f64 * scale - self.gap as f64 * scale;
+        let mx = monitor.x as f64
+            + self.x * monitor.width as f64
+            + self.margin as f64 * scale
+            + (self.gap as f64 * scale / 2.0);
+        let my = monitor.y as f64
+            + self.y * monitor.height as f64
+            + self.margin as f64 * scale
+            + (self.gap as f64 * scale / 2.0);
+        let mw = (self.width * monitor.width as f64)
+            - 2.0 * self.margin as f64 * scale
+            - self.gap as f64 * scale;
+        let mh = (self.height * monitor.height as f64)
+            - 2.0 * self.margin as f64 * scale
+            - self.gap as f64 * scale;
         Rect {
             x: mx.floor() as i32,
             y: my.floor() as i32,

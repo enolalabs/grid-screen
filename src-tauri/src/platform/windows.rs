@@ -5,11 +5,11 @@ mod windows_impl {
     use std::thread;
     use std::time::Duration;
 
-    use windows::Win32::UI::WindowsAndMessaging::*;
     use windows::Win32::Graphics::Gdi::*;
-    use windows::Win32::UI::Input::*;
-    use windows::Win32::System::Registry::*;
     use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows::Win32::System::Registry::*;
+    use windows::Win32::UI::Input::*;
+    use windows::Win32::UI::WindowsAndMessaging::*;
 
     use super::PlatformApi;
     use crate::types::*;
@@ -105,9 +105,8 @@ mod windows_impl {
                 loop {
                     thread::sleep(Duration::from_millis(60));
 
-                    let mouse_down = unsafe {
-                        GetAsyncKeyState(i32::from(VK_LBUTTON)) as u16 & 0x8000 != 0
-                    };
+                    let mouse_down =
+                        unsafe { GetAsyncKeyState(i32::from(VK_LBUTTON)) as u16 & 0x8000 != 0 };
 
                     let mut current = Vec::new();
                     unsafe {
@@ -125,7 +124,8 @@ mod windows_impl {
                                 .map(|(_, r)| *r);
 
                             if let Some(pr) = prev_rect {
-                                if pr.x != rect.x || pr.y != rect.y
+                                if pr.x != rect.x
+                                    || pr.y != rect.y
                                     || pr.width != rect.width
                                     || pr.height != rect.height
                                 {
@@ -145,8 +145,7 @@ mod windows_impl {
                             }
                         }
                     } else if let Some(dh) = drag_handle.take() {
-                        if let Some(rect) =
-                            current.iter().find(|(h, _)| *h == dh).map(|(_, r)| *r)
+                        if let Some(rect) = current.iter().find(|(h, _)| *h == dh).map(|(_, r)| *r)
                         {
                             let _ = tx.send(WindowMoveEvent::DragEnd {
                                 handle: WindowHandle(dh),
@@ -185,10 +184,7 @@ mod windows_impl {
             register_overlay_class()?;
 
             let monitors = self.enumerate_monitors();
-            let mon = monitors
-                .iter()
-                .find(|m| m.id == monitor_id)
-                .cloned();
+            let mon = monitors.iter().find(|m| m.id == monitor_id).cloned();
 
             let (mx, my, mw, mh) = match mon {
                 Some(ref m) => (m.x, m.y, m.width as i32, m.height as i32),
@@ -253,11 +249,7 @@ mod windows_impl {
 
                 if !bitmap.is_invalid() && !bit_ptr.is_null() {
                     let dst = bit_ptr as *mut u8;
-                    std::ptr::copy_nonoverlapping(
-                        pixels.as_ptr(),
-                        dst,
-                        (w * h * 4) as usize,
-                    );
+                    std::ptr::copy_nonoverlapping(pixels.as_ptr(), dst, (w * h * 4) as usize);
 
                     let mem_dc = CreateCompatibleDC(hdc);
                     if !mem_dc.is_invalid() {
@@ -306,27 +298,19 @@ mod windows_impl {
                 let key_path =
                     windows::core::w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
                 let mut hkey = HKEY::default();
-                let result = RegOpenKeyExW(
-                    HKEY_CURRENT_USER,
-                    key_path,
-                    0,
-                    KEY_SET_VALUE,
-                    &mut hkey,
-                );
+                let result =
+                    RegOpenKeyExW(HKEY_CURRENT_USER, key_path, 0, KEY_SET_VALUE, &mut hkey);
                 if result != ERROR_SUCCESS {
                     return Err("Cannot open registry key".into());
                 }
 
                 if enabled {
-                    let exe =
-                        std::env::current_exe().map_err(|e| format!("{}", e))?;
+                    let exe = std::env::current_exe().map_err(|e| format!("{}", e))?;
                     let exe_str = exe.to_string_lossy();
                     let value = windows::core::w!("grid-screen");
                     let data = encode_wide(&exe_str);
-                    let data_bytes: &[u8] = std::slice::from_raw_parts(
-                        data.as_ptr() as *const u8,
-                        data.len() * 2,
-                    );
+                    let data_bytes: &[u8] =
+                        std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 2);
                     RegSetValueExW(hkey, value, 0, REG_SZ, Some(data_bytes))
                         .map_err(|e| format!("Registry write failed: {}", e))?;
                 } else {
@@ -364,12 +348,8 @@ mod windows_impl {
                 name,
                 x: info.monitorInfo.rcMonitor.left,
                 y: info.monitorInfo.rcMonitor.top,
-                width: (info.monitorInfo.rcMonitor.right
-                    - info.monitorInfo.rcMonitor.left)
-                    as u32,
-                height: (info.monitorInfo.rcMonitor.bottom
-                    - info.monitorInfo.rcMonitor.top)
-                    as u32,
+                width: (info.monitorInfo.rcMonitor.right - info.monitorInfo.rcMonitor.left) as u32,
+                height: (info.monitorInfo.rcMonitor.bottom - info.monitorInfo.rcMonitor.top) as u32,
                 dpi_scale: 1.0,
                 is_primary: (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0,
             });

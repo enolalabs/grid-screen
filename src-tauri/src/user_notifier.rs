@@ -10,13 +10,34 @@ pub struct UserNotification {
 
 impl UserNotification {
     pub fn info(message: &str) -> Self {
-        Self { level: "info".into(), message: message.into(), timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() }
+        Self {
+            level: "info".into(),
+            message: message.into(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        }
     }
     pub fn warning(message: &str) -> Self {
-        Self { level: "warning".into(), message: message.into(), timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() }
+        Self {
+            level: "warning".into(),
+            message: message.into(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        }
     }
     pub fn error(message: &str) -> Self {
-        Self { level: "error".into(), message: message.into(), timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() }
+        Self {
+            level: "error".into(),
+            message: message.into(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        }
     }
 }
 

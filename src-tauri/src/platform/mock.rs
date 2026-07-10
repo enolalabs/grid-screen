@@ -79,12 +79,18 @@ impl PlatformApi for MockPlatformApi {
     }
 
     fn subscribe_window_move_events(&self) -> mpsc::Receiver<WindowMoveEvent> {
-        self.move_rx.lock().unwrap().take()
+        self.move_rx
+            .lock()
+            .unwrap()
+            .take()
             .expect("subscribe_window_move_events called more than once")
     }
 
     fn subscribe_display_change_events(&self) -> mpsc::Receiver<DisplayChangeEvent> {
-        self.display_rx.lock().unwrap().take()
+        self.display_rx
+            .lock()
+            .unwrap()
+            .take()
             .expect("subscribe_display_change_events called more than once")
     }
 

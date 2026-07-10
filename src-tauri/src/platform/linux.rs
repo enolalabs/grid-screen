@@ -8,14 +8,14 @@ use x11rb::connection::{Connection, RequestConnection};
 use x11rb::protocol::randr::{self, ConnectionExt as _};
 use x11rb::protocol::shape::{self, ConnectionExt as _};
 use x11rb::protocol::xinerama::{self, ConnectionExt as _};
-use x11rb::protocol::xproto::{
-    self, ChangeWindowAttributesAux, ConfigureWindowAux, CreateWindowAux, EventMask,
-    KeyButMask, PropMode, VisualClass, Visualid, Window as XWindow,
-};
 use x11rb::protocol::xproto::ConnectionExt as XProtoExt;
-use x11rb::wrapper::ConnectionExt as WrapperExt;
+use x11rb::protocol::xproto::{
+    self, ChangeWindowAttributesAux, ConfigureWindowAux, CreateWindowAux, EventMask, KeyButMask,
+    PropMode, VisualClass, Visualid, Window as XWindow,
+};
 use x11rb::protocol::Event;
 use x11rb::rust_connection::RustConnection;
+use x11rb::wrapper::ConnectionExt as WrapperExt;
 
 use super::PlatformApi;
 use crate::types::*;
@@ -24,8 +24,9 @@ pub struct LinuxPlatformApi {
     conn: Arc<RustConnection>,
     screen_num: usize,
     root: XWindow,
-    argb_visual: Option<Visualid>,
-    argb_colormap: Option<u32>,
+    overlay_visual: Visualid,
+    overlay_colormap: u32,
+    overlay_depth: u8,
     overlay_gc: std::sync::Mutex<Option<xproto::Gcontext>>,
 }
 
@@ -36,14 +37,31 @@ impl LinuxPlatformApi {
         let screen = &conn.setup().roots[screen_num];
         let root = screen.root;
 
-        let (argb_visual, argb_colormap) = find_argb_visual(&conn, screen_num);
+        let (overlay_visual, overlay_colormap, overlay_depth) =
+            if let Some((visual, depth)) = find_argb_visual(&conn, screen_num) {
+                let colormap = conn
+                    .generate_id()
+                    .map_err(|e| format!("generate ARGB colormap id: {e}"))?;
+                conn.create_colormap(xproto::ColormapAlloc::NONE, colormap, root, visual)
+                    .map_err(|e| format!("create ARGB colormap: {e}"))?
+                    .check()
+                    .map_err(|e| format!("create ARGB colormap: {e}"))?;
+                (visual, colormap, depth)
+            } else {
+                (
+                    screen.root_visual,
+                    screen.default_colormap,
+                    screen.root_depth,
+                )
+            };
 
         Ok(Self {
             conn,
             screen_num,
             root,
-            argb_visual,
-            argb_colormap,
+            overlay_visual,
+            overlay_colormap,
+            overlay_depth,
             overlay_gc: std::sync::Mutex::new(None),
         })
     }
@@ -53,17 +71,13 @@ impl LinuxPlatformApi {
         if let Some(gc) = *gc_lock {
             return gc;
         }
-        let gc = self
-            .conn
-            .generate_id()
-            .ok()
-            .and_then(|gc_id| {
-                self.conn
-                    .create_gc(gc_id, drawable, &xproto::CreateGCAux::new())
-                    .ok()
-                    .and_then(|c| c.check().ok())
-                    .map(|_| gc_id)
-            });
+        let gc = self.conn.generate_id().ok().and_then(|gc_id| {
+            self.conn
+                .create_gc(gc_id, drawable, &xproto::CreateGCAux::new())
+                .ok()
+                .and_then(|c| c.check().ok())
+                .map(|_| gc_id)
+        });
         if let Some(gc) = gc {
             *gc_lock = Some(gc);
             gc
@@ -240,7 +254,7 @@ impl PlatformApi for LinuxPlatformApi {
                     .ok()
                     .and_then(|c| c.reply().ok());
                 match coords {
-                    Some(c) => (c.dst_x as i32 - geom.x as i32, c.dst_y as i32 - geom.y as i32),
+                    Some(c) => (c.dst_x as i32, c.dst_y as i32),
                     None => (geom.x as i32, geom.y as i32),
                 }
             };
@@ -367,7 +381,10 @@ impl PlatformApi for LinuxPlatformApi {
                         if ev.detail == 1 {
                             if let Some(dh) = drag_handle.take() {
                                 let rect = windows.get(&dh).copied().unwrap_or(Rect {
-                                    x: 0, y: 0, width: 0, height: 0,
+                                    x: 0,
+                                    y: 0,
+                                    width: 0,
+                                    height: 0,
                                 });
                                 let _ = tx.send(WindowMoveEvent::DragEnd {
                                     handle: WindowHandle(dh as u64),
@@ -403,7 +420,9 @@ impl PlatformApi for LinuxPlatformApi {
                                 };
                                 let prev = windows.insert(child, current);
                                 if let Some(prev_rect) = prev {
-                                    if (prev_rect.x != current.x || prev_rect.y != current.y) && drag_handle != Some(child) {
+                                    if (prev_rect.x != current.x || prev_rect.y != current.y)
+                                        && drag_handle != Some(child)
+                                    {
                                         drag_handle = Some(child);
                                         let _ = tx.send(WindowMoveEvent::DragStart {
                                             handle: WindowHandle(child as u64),
@@ -421,7 +440,10 @@ impl PlatformApi for LinuxPlatformApi {
                     }
                 } else if let Some(dh) = drag_handle.take() {
                     let rect = windows.get(&dh).copied().unwrap_or(Rect {
-                        x: 0, y: 0, width: 0, height: 0,
+                        x: 0,
+                        y: 0,
+                        width: 0,
+                        height: 0,
                     });
                     let _ = tx.send(WindowMoveEvent::DragEnd {
                         handle: WindowHandle(dh as u64),
@@ -497,10 +519,6 @@ impl PlatformApi for LinuxPlatformApi {
             .cloned()
             .ok_or_else(|| "Monitor not found".to_string())?;
 
-        let screen = &self.conn.setup().roots[self.screen_num];
-        let visual = self.argb_visual.unwrap_or(screen.root_visual);
-        let colormap = self.argb_colormap.unwrap_or(screen.default_colormap);
-
         let win = self
             .conn
             .generate_id()
@@ -509,12 +527,12 @@ impl PlatformApi for LinuxPlatformApi {
         let aux = CreateWindowAux::new()
             .background_pixel(0x00000000)
             .border_pixel(0)
-            .colormap(colormap)
+            .colormap(self.overlay_colormap)
             .override_redirect(xproto::Bool32::from(true));
 
         self.conn
             .create_window(
-                32,
+                self.overlay_depth,
                 win,
                 self.root,
                 mon.x as i16,
@@ -523,9 +541,11 @@ impl PlatformApi for LinuxPlatformApi {
                 mon.height.max(1) as u16,
                 0,
                 xproto::WindowClass::INPUT_OUTPUT,
-                visual,
+                self.overlay_visual,
                 &aux,
             )
+            .map_err(|e| format!("create_window: {}", e))?
+            .check()
             .map_err(|e| format!("create_window: {}", e))?;
 
         // Set _NET_WM_WINDOW_TYPE_DOCK
@@ -632,7 +652,7 @@ impl PlatformApi for LinuxPlatformApi {
 
 // ── Helpers ──────────────────────────────────────────────────
 
-fn find_argb_visual(conn: &RustConnection, screen_num: usize) -> (Option<Visualid>, Option<u32>) {
+fn find_argb_visual(conn: &RustConnection, screen_num: usize) -> Option<(Visualid, u8)> {
     let screen = &conn.setup().roots[screen_num];
     for depth in &screen.allowed_depths {
         if depth.depth == 32 {
@@ -640,24 +660,28 @@ fn find_argb_visual(conn: &RustConnection, screen_num: usize) -> (Option<Visuali
                 if vis.class == VisualClass::TRUE_COLOR {
                     let mask = vis.red_mask | vis.green_mask | vis.blue_mask;
                     if mask.count_ones() == 24 {
-                        return (Some(vis.visual_id), Some(screen.default_colormap));
+                        return Some((vis.visual_id, depth.depth));
                     }
                 }
             }
         }
     }
-    (None, None)
+    None
 }
 
 fn get_window_title(conn: &RustConnection, window: u32) -> String {
-    let utf8_atom = conn
+    let net_wm_name_atom = conn
         .intern_atom(false, b"_NET_WM_NAME")
         .ok()
         .and_then(|c| c.reply().ok());
+    let utf8_string_atom = conn
+        .intern_atom(false, b"UTF8_STRING")
+        .ok()
+        .and_then(|c| c.reply().ok());
 
-    if let Some(ref atom) = utf8_atom {
+    if let (Some(name), Some(utf8_string)) = (net_wm_name_atom, utf8_string_atom) {
         let reply = conn
-            .get_property(false, window, atom.atom, xproto::AtomEnum::STRING, 0, 256)
+            .get_property(false, window, name.atom, utf8_string.atom, 0, 256)
             .ok()
             .and_then(|c| c.reply().ok());
         if let Some(prop) = reply {

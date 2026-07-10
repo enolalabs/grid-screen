@@ -10,7 +10,10 @@ pub fn record_frame() {
 }
 
 pub fn current_fps() -> f64 {
-    let elapsed = FRAME_START.get().map(|s| s.elapsed().as_secs_f64()).unwrap_or(0.001);
+    let elapsed = FRAME_START
+        .get()
+        .map(|s| s.elapsed().as_secs_f64())
+        .unwrap_or(0.001);
     let count = FRAME_COUNT.load(Ordering::Relaxed) as f64;
     count / elapsed.max(0.001)
 }
