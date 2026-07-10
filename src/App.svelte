@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { getCurrentState } from "./lib/ipc";
+  import { getCurrentState, saveSettings } from "./lib/ipc";
   import { currentState, savedLayouts, settings } from "./lib/stores";
   import { notify, toastNotifications } from "./lib/notifications";
   import AppShell from "./lib/components/AppShell.svelte";
@@ -63,6 +63,13 @@
   async   function handleRetry() {
     await loadState();
   }
+
+  async function handleCompleteOnboarding() {
+    if (initialization.status !== "loaded") return;
+    const currentSettings = initialization.state.settings;
+    await saveSettings({ ...currentSettings, first_run_completed: true });
+    await loadState();
+  }
 </script>
 
 <AppShell
@@ -72,6 +79,7 @@
   monitorCount={initialization.status === "loaded" ? initialization.state.monitors.length : 0}
   onNavigate={handleNavigate}
   onRetry={handleRetry}
+  onCompleteOnboarding={handleCompleteOnboarding}
 >
   {#if initialization.status === "loaded"}
     {#if activeView === "workspace"}

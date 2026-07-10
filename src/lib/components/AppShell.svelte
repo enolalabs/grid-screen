@@ -13,6 +13,7 @@
     monitorCount: number;
     onNavigate: (view: AppView) => void;
     onRetry: () => void;
+    onCompleteOnboarding?: () => void;
     children?: import("svelte").Snippet;
   }
 
@@ -23,6 +24,7 @@
     monitorCount,
     onNavigate,
     onRetry,
+    onCompleteOnboarding,
     children,
   }: Props = $props();
 
@@ -68,9 +70,10 @@
               title="Welcome to Grid Screen"
               description="Create your first zone layout and start organizing your workspace."
               actionLabel={monitorCount > 0 ? "Open Workspace" : "Connect a display"}
-              completionLabel="Skip setup"
+              completionLabel="Finish setup"
               onboarding={true}
               onAction={() => onNavigate("workspace")}
+              onCompleteOnboarding={onCompleteOnboarding}
             />
           </div>
         {:else if runState === "empty"}
