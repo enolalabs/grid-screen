@@ -1,25 +1,34 @@
 <script lang="ts">
   import { settings } from "$lib/stores/settings";
   import { systemStatus } from "$lib/stores/systemStatus";
+  import { commands } from "$lib/commands";
   import SettingsGroup from "./SettingsGroup.svelte";
 
   const modifierOptions = ["Shift", "Ctrl", "Alt", "Super"];
 
-  function toggleSnap() {
+  async function toggleSnap() {
     settings.update((s) => ({ ...s, snap_enabled: !s.snap_enabled }));
+    await commands.updateSettings($settings);
   }
 
-  function setModifier(e: Event) {
+  async function setModifier(e: Event) {
     const val = (e.target as HTMLSelectElement).value;
     settings.update((s) => ({ ...s, snap_modifier: val }));
+    await commands.updateSettings($settings);
   }
 
-  function toggleAutostart() {
+  async function toggleAutostart() {
     settings.update((s) => ({ ...s, autostart_enabled: !s.autostart_enabled }));
+    await commands.updateSettings($settings);
   }
 
-  function toggleTray() {
+  async function toggleTray() {
     settings.update((s) => ({ ...s, minimize_to_tray: !s.minimize_to_tray }));
+    await commands.updateSettings($settings);
+  }
+
+  async function saveDefaults() {
+    await commands.saveDefaults($settings.default_gap_px, $settings.default_margin_px);
   }
 </script>
 
@@ -64,6 +73,11 @@
         <span class="sub">Space around screen edge</span>
       </div>
       <span class="accent-value">{$settings.default_margin_px} px</span>
+    </div>
+    <div class="settings-row">
+      <button class="btn-save-defaults" onclick={saveDefaults}>
+        Save as Defaults
+      </button>
     </div>
   </SettingsGroup>
 
@@ -226,5 +240,15 @@
   }
   .status-pill.unavailable .status-dot {
     background: var(--danger);
+  }
+  .btn-save-defaults {
+    padding: 8px 20px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
   }
 </style>

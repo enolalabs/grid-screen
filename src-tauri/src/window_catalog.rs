@@ -2,6 +2,10 @@ use shared_types::WindowDescriptor;
 use crate::platform_adapter::PlatformAdapter;
 use std::collections::HashSet;
 
+pub fn is_eligible_window(w: &WindowDescriptor) -> bool {
+    w.state.movable && w.state.resizable && !w.state.fullscreen && !w.app_name.is_empty()
+}
+
 pub struct WindowCatalog<'a> {
     adapter: &'a dyn PlatformAdapter,
     known_ids: std::cell::RefCell<HashSet<String>>,
@@ -19,12 +23,7 @@ impl<'a> WindowCatalog<'a> {
         let windows = self.adapter.enumerate_windows(workspace);
         let eligible: Vec<_> = windows
             .into_iter()
-            .filter(|w| {
-                w.state.movable
-                    && w.state.resizable
-                    && !w.state.fullscreen
-                    && !w.app_name.is_empty()
-            })
+            .filter(|w| is_eligible_window(w))
             .collect();
         self.known_ids.borrow_mut().extend(eligible.iter().map(|w| w.id.clone()));
         eligible

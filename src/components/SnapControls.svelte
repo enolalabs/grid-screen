@@ -1,10 +1,12 @@
 <script lang="ts">
   import { settings } from "$lib/stores/settings";
+  import { commands } from "$lib/commands";
 
   let showOverlay = $state(true);
 
-  function toggleSnap() {
+  async function toggleSnap() {
     settings.update((s) => ({ ...s, snap_enabled: !s.snap_enabled }));
+    await commands.updateSettings($settings);
   }
 
   function toggleOverlay() {

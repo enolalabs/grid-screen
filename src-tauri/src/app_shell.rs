@@ -3,6 +3,7 @@ use crate::config_store::ConfigStore;
 use crate::layout_engine::LayoutEngine;
 use crate::arrange_orchestrator::ArrangeOrchestrator;
 use crate::diagnostics::Diagnostics;
+use crate::window_catalog;
 use shared_types::*;
 use tauri::State;
 
@@ -20,7 +21,7 @@ pub fn bootstrap(state: State<AppState>) -> Result<BootstrapData, String> {
     let windows = state.adapter.enumerate_windows(&workspace);
     let eligible: Vec<_> = windows
         .into_iter()
-        .filter(|w| w.state.movable && w.state.resizable && !w.state.fullscreen)
+        .filter(|w| window_catalog::is_eligible_window(w))
         .collect();
 
     let system_status = state.adapter.detect_capabilities();
@@ -40,7 +41,7 @@ pub fn refresh_windows(state: State<AppState>) -> Vec<WindowDescriptor> {
     let windows = state.adapter.enumerate_windows(&workspace);
     windows
         .into_iter()
-        .filter(|w| w.state.movable && w.state.resizable && !w.state.fullscreen)
+        .filter(|w| window_catalog::is_eligible_window(w))
         .collect()
 }
 

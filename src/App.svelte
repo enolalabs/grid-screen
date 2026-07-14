@@ -53,7 +53,7 @@
 
 <div class="app">
   <TitleBar />
-  <TabNav {activeTab} on:tabChange={(e) => activeTab = e.detail} />
+  <TabNav bind:activeTab />
   <div class="view-container">
     {#if loading}
       <div class="loading">Loading...</div>

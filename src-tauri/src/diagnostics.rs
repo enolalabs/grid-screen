@@ -15,7 +15,9 @@ impl Diagnostics {
             "grid-screen.log",
         );
 
-        let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+        let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+
+        Box::leak(Box::new(guard));
 
         tracing_subscriber::fmt()
             .with_env_filter("info")
