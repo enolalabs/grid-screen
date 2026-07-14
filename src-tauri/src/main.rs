@@ -32,10 +32,12 @@ fn main() {
     std::fs::create_dir_all(&config_path).unwrap();
     Diagnostics::init(&config_path);
 
+    let config = ConfigStore::new(config_path.clone());
+    config.seed_presets().expect("Failed to seed layout presets");
+
     tracing::info!("Grid Screen starting, config dir: {:?}", config_path);
 
     let adapter = MockPlatformAdapter::new();
-    let config = ConfigStore::new(config_path);
 
     let app_state = AppState {
         adapter: Box::new(adapter),

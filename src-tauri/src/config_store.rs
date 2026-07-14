@@ -1,4 +1,4 @@
-use shared_types::{Layout, Settings};
+use shared_types::{Layout, LayoutType, Settings};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -62,6 +62,55 @@ impl ConfigStore {
         let json = serde_json::to_string_pretty(layouts)
             .map_err(|e| format!("Failed to serialize layouts: {}", e))?;
         self.atomic_write(&path, &tmp, &json)
+    }
+
+    pub fn seed_presets(&self) -> Result<(), String> {
+        let (_, layouts, _) = self.load()?;
+        if !layouts.is_empty() {
+            return Ok(());
+        }
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let presets = vec![
+            Layout {
+                id: "2col".into(), name: "Two Columns".into(),
+                layout_type: LayoutType::Preset, zones: 2,
+                columns: "1fr 1fr".into(), rows: None, span_first: None,
+                ratio: Some(50), gap_px: 10, margin_px: 16,
+                created_at: now.clone(), updated_at: now.clone(),
+            },
+            Layout {
+                id: "3col".into(), name: "Three Columns".into(),
+                layout_type: LayoutType::Preset, zones: 3,
+                columns: "1fr 1fr 1fr".into(), rows: None, span_first: None,
+                ratio: None, gap_px: 10, margin_px: 16,
+                created_at: now.clone(), updated_at: now.clone(),
+            },
+            Layout {
+                id: "focus".into(), name: "Focus + Stack".into(),
+                layout_type: LayoutType::Preset, zones: 3,
+                columns: "2fr 1fr".into(), rows: Some("1fr 1fr".into()),
+                span_first: Some(true), ratio: None,
+                gap_px: 10, margin_px: 16,
+                created_at: now.clone(), updated_at: now.clone(),
+            },
+            Layout {
+                id: "main-side".into(), name: "Main + Sidebar".into(),
+                layout_type: LayoutType::Preset, zones: 2,
+                columns: "3fr 1fr".into(), rows: None, span_first: None,
+                ratio: Some(75), gap_px: 10, margin_px: 16,
+                created_at: now.clone(), updated_at: now.clone(),
+            },
+            Layout {
+                id: "3wide".into(), name: "3 Wide Center".into(),
+                layout_type: LayoutType::Preset, zones: 3,
+                columns: "1fr 2fr 1fr".into(), rows: None, span_first: None,
+                ratio: None, gap_px: 10, margin_px: 16,
+                created_at: now.clone(), updated_at: now,
+            },
+        ];
+
+        self.save_layouts(&presets)
     }
 
     pub fn save_defaults(&self, gap_px: u32, margin_px: u32) -> Result<(), String> {
