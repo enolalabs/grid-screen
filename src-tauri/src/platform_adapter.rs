@@ -1,6 +1,7 @@
 use shared_types::*;
 
 pub type WorkspaceId = String;
+#[allow(dead_code)]
 pub type EventStream<T> = tokio::sync::broadcast::Receiver<T>;
 
 pub trait PlatformAdapter: Send + Sync {
@@ -11,7 +12,9 @@ pub trait PlatformAdapter: Send + Sync {
     fn get_frame_extents(&self, window_id: &str) -> Rect;
     fn restore_window(&self, window_id: &str);
     fn move_resize_window(&self, window_id: &str, rect: Rect) -> Result<Rect, String>;
+    #[allow(dead_code)]
     fn subscribe_workspace_events(&self) -> EventStream<WorkspaceChangedPayload>;
+    #[allow(dead_code)]
     fn subscribe_screen_events(&self) -> EventStream<ScreenChangedPayload>;
     fn detect_capabilities(&self) -> SystemStatus;
 }

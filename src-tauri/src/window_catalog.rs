@@ -1,5 +1,4 @@
 use shared_types::WindowDescriptor;
-use crate::platform_adapter::PlatformAdapter;
 #[cfg(test)]
 use std::collections::HashSet;
 

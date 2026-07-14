@@ -5,8 +5,6 @@ use x11rb::protocol::xproto::*;
 use x11rb::rust_connection::RustConnection;
 use x11rb::connection::Connection;
 use x11rb::atom_manager;
-use x11rb::properties::WmClass;
-use std::collections::HashSet;
 
 atom_manager! {
     pub AtomCollection: AtomCollectionCookie {
@@ -54,7 +52,9 @@ pub struct X11Adapter {
     screen_num: usize,
     root: u32,
     system_status: SystemStatus,
+    #[allow(dead_code)]
     workspace_tx: broadcast::Sender<WorkspaceChangedPayload>,
+    #[allow(dead_code)]
     screen_tx: broadcast::Sender<ScreenChangedPayload>,
 }
 
@@ -236,6 +236,7 @@ impl X11Adapter {
         "Unknown".to_string()
     }
 
+    #[allow(dead_code)]
     fn get_pid(conn: &RustConnection, atoms: &AtomCollection, window: u32) -> Option<u32> {
         conn.get_property(false, window, atoms._NET_WM_PID, AtomEnum::CARDINAL, 0, 1)
             .ok()?
@@ -253,7 +254,7 @@ impl X11Adapter {
         format!("hsl({}, 55%, 50%)", hue)
     }
 
-    fn is_eligible(&self, window: u32, wm_state_set: &std::collections::HashSet<u32>, window_type_atom: Option<u32>) -> bool {
+    fn is_eligible(&self, _window: u32, wm_state_set: &std::collections::HashSet<u32>, window_type_atom: Option<u32>) -> bool {
         // Skip fullscreen windows
         if wm_state_set.contains(&self.atoms._NET_WM_STATE_FULLSCREEN) {
             return false;
@@ -305,7 +306,7 @@ impl PlatformAdapter for X11Adapter {
 
     fn get_window_state(&self, window_id: &str) -> Option<WindowState> {
         let win: u32 = window_id.parse().ok()?;
-        let attr = self.conn.get_window_attributes(win).ok()?.reply().ok()?;
+        let _attr = self.conn.get_window_attributes(win).ok()?.reply().ok()?;
 
         let (minimized, maximized, fullscreen) = self.get_wm_state(win);
         let (movable, resizable) = self.get_allowed_actions(win);

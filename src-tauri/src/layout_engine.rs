@@ -1,4 +1,4 @@
-use shared_types::{Layout, LayoutType, Rect, ScreenInfo};
+use shared_types::{Layout, Rect, ScreenInfo};
 
 pub struct LayoutEngine;
 
@@ -12,7 +12,7 @@ impl LayoutEngine {
         }
 
         let zones = layout.zones as usize;
-        let num_cols = layout.columns.split_whitespace().count();
+        let _num_cols = layout.columns.split_whitespace().count();
 
         if zones == 2 && layout.ratio.is_some() {
             let ratio = layout.ratio.unwrap() as i32; // 10-90

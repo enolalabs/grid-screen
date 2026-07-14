@@ -10,7 +10,7 @@ impl ArrangeOrchestrator {
         layouts: &[Layout],
         screens: &[ScreenInfo],
         adapter: &dyn PlatformAdapter,
-        engine: &LayoutEngine,
+        _engine: &LayoutEngine,
     ) -> ArrangeResult {
         let layout = match layouts.iter().find(|l| l.id == request.layout_id) {
             Some(l) => l,
