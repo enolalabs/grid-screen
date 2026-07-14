@@ -292,50 +292,12 @@ impl PlatformAdapter for X11Adapter {
     fn enumerate_windows(&self, _workspace: &str) -> Vec<WindowDescriptor> {
         let mut windows = Vec::new();
 
-        let client_list = match self.conn.get_property(
-            false, self.root,
-            self.atoms._NET_CLIENT_LIST,
-            AtomEnum::WINDOW, 0, 1024,
-        ) {
-            Ok(r) => match r.reply() {
-                Ok(r) => r,
-                Err(_) => return windows,
-            },
-            Err(_) => return windows,
-        };
-
-        let window_ids: Vec<u32> = client_list.value32()
-            .map(|iter| iter.collect())
-            .unwrap_or_default();
+        let window_ids = self.get_client_list();
 
         for &win_id in &window_ids {
-            let title = Self::get_window_title(&self.conn, &self.atoms, win_id);
-            let app_name = Self::get_app_name(&self.conn, &self.atoms, win_id);
-            let icon_color = Self::get_icon_color(&app_name);
-
-            // Check window state
-            let (minimized, maximized, fullscreen) = self.get_wm_state(win_id);
-
-            // Check allowed actions
-            let (movable, resizable) = self.get_allowed_actions(win_id);
-
-            if !self.is_eligible(win_id, &self.get_wm_state_set(win_id), self.get_window_type_atom(win_id)) {
-                continue;
+            if let Some(desc) = self.build_window_descriptor(win_id) {
+                windows.push(desc);
             }
-
-            windows.push(WindowDescriptor {
-                id: win_id.to_string(),
-                app_name,
-                title,
-                icon_color,
-                state: WindowState {
-                    minimized,
-                    maximized,
-                    fullscreen,
-                    movable,
-                    resizable,
-                },
-            });
         }
 
         windows
@@ -443,6 +405,51 @@ impl PlatformAdapter for X11Adapter {
 }
 
 impl X11Adapter {
+    fn get_client_list(&self) -> Vec<u32> {
+        if let Ok(reply) = self.conn.get_property(
+            false, self.root, self.atoms._NET_CLIENT_LIST, AtomEnum::WINDOW, 0, 1024,
+        ) {
+            if let Ok(reply) = reply.reply() {
+                let ids: Vec<u32> = reply.value32().map(|i| i.collect()).unwrap_or_default();
+                if !ids.is_empty() { return ids; }
+            }
+        }
+        self.query_tree_windows()
+    }
+
+    fn query_tree_windows(&self) -> Vec<u32> {
+        let reply = match self.conn.query_tree(self.root) {
+            Ok(r) => match r.reply() { Ok(r) => r, Err(_) => return Vec::new() },
+            Err(_) => return Vec::new(),
+        };
+        let mut ids = Vec::new();
+        for &child in &reply.children {
+            if let Ok(attrs) = self.conn.get_window_attributes(child) {
+                if let Ok(attrs) = attrs.reply() {
+                    if attrs.map_state == MapState::VIEWABLE
+                        && !attrs.override_redirect
+                    { ids.push(child); }
+                }
+            }
+        }
+        ids
+    }
+
+    fn build_window_descriptor(&self, win_id: u32) -> Option<WindowDescriptor> {
+        let title = Self::get_window_title(&self.conn, &self.atoms, win_id);
+        let app_name = Self::get_app_name(&self.conn, &self.atoms, win_id);
+        let icon_color = Self::get_icon_color(&app_name);
+        let (minimized, maximized, fullscreen) = self.get_wm_state(win_id);
+        let (movable, resizable) = self.get_allowed_actions(win_id);
+        if !self.is_eligible(win_id, &self.get_wm_state_set(win_id), self.get_window_type_atom(win_id)) {
+            return None;
+        }
+        Some(WindowDescriptor {
+            id: win_id.to_string(), app_name, title, icon_color,
+            state: WindowState { minimized, maximized, fullscreen, movable, resizable },
+        })
+    }
+
     fn get_wm_state(&self, window: u32) -> (bool, bool, bool) {
         let reply = match self.conn.get_property(
             false, window,
