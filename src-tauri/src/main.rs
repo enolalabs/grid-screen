@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod config_store;
+mod layout_engine;
 mod platform_adapter;
 
 fn main() {
