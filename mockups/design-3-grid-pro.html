@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grid Screen — Grid Pro (Compact Technical)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #1a1b1e;
+    --surface: #222327;
+    --surface-2: #2a2b30;
+    --surface-3: #34353b;
+    --border: #3a3b42;
+    --border-bright: #4a4b53;
+    --text: #d4d4dc;
+    --text-dim: #8b8b96;
+    --text-mute: #5c5c68;
+    --accent: #3fb950;
+    --accent-dim: #2ea043;
+    --accent-soft: rgba(63, 185, 80, 0.1);
+    --accent-glow: rgba(63, 185, 80, 0.2);
+    --warn: #d29922;
+    --danger: #f85149;
+    --info: #58a6ff;
+    --radius: 4px;
+    --transition: 0.12s ease;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    font-size: 13px;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ── Title Bar ── */
+  .titlebar {
+    display: flex; align-items: center; height: 32px;
+    padding: 0 8px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    -webkit-app-region: drag;
+  }
+  .traffic-lights { display: flex; gap: 6px; margin-right: 12px; }
+  .tl { width: 10px; height: 10px; border-radius: 50%; cursor: pointer; opacity: 0.7; }
+  .tl-close { background: #ff5f57; }
+  .tl-min { background: #febc2e; }
+  .tl-max { background: #28c840; }
+  .title-text {
+    font-size: 12px; font-weight: 500; color: var(--text-dim);
+    margin: 0 auto; padding-right: 48px;
+  }
+  .title-text .accent { color: var(--accent); }
+
+  /* ── Activity Bar (icon sidebar) ── */
+  .activity-bar {
+    display: flex; flex-direction: column;
+    width: 48px; background: var(--surface);
+    border-right: 1px solid var(--border); flex-shrink: 0;
+    padding-top: 4px;
+  }
+  .activity-item {
+    width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: var(--transition); position: relative;
+    color: var(--text-mute);
+  }
+  .activity-item:hover { color: var(--text-dim); }
+  .activity-item.active { color: var(--accent); }
+  .activity-item.active::before {
+    content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
+    width: 2px; background: var(--accent);
+  }
+  .activity-item svg { width: 22px; height: 22px; }
+  .activity-spacer { flex: 1; }
+
+  /* ── Views ── */
+  .view { display: none; flex: 1; overflow: hidden; }
+  .view.active { display: flex; }
+
+  /* ── Arrange Main ── */
+  .arrange-main { display: grid; grid-template-columns: 260px 1fr 280px; flex: 1; overflow: hidden; }
+
+  /* ── Side Panel Header ── */
+  .side-panel {
+    background: var(--surface); display: flex; flex-direction: column; overflow: hidden;
+  }
+  .side-panel.left { border-right: 1px solid var(--border); }
+  .side-panel.right { border-left: 1px solid var(--border); }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; height: 35px; border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .panel-title {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-dim);
+  }
+  .panel-actions { display: flex; gap: 4px; }
+  .panel-action {
+    width: 22px; height: 22px; border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--text-mute); transition: var(--transition);
+  }
+  .panel-action:hover { background: var(--surface-3); color: var(--text); }
+  .panel-action svg { width: 14px; height: 14px; }
+
+  /* ── Search ── */
+  .search-wrap { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  .search-box {
+    width: 100%; padding: 4px 8px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); font-size: 12px; font-family: inherit; outline: none;
+    transition: var(--transition);
+  }
+  .search-box:focus { border-color: var(--accent); }
+  .search-box::placeholder { color: var(--text-mute); font-size: 12px; }
+
+  /* ── Window List ── */
+  .window-list { flex: 1; overflow-y: auto; list-style: none; }
+  .window-card {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 12px; cursor: grab; transition: var(--transition);
+    border-left: 2px solid transparent; position: relative;
+    border-bottom: 1px solid rgba(58, 59, 66, 0.4);
+  }
+  .window-card:hover { background: var(--surface-2); border-left-color: var(--text-mute); }
+  .window-card.assigned { opacity: 0.4; }
+  .window-card.dragging { opacity: 0.3; border-left-color: var(--accent) !important; }
+  .window-card.hidden { display: none; }
+  .window-card.assigned .assign-badge {
+    font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 2px;
+    background: var(--accent-soft); color: var(--accent);
+    font-family: 'JetBrains Mono', monospace; text-transform: uppercase;
+  }
+  .app-icon {
+    width: 20px; height: 20px; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; flex-shrink: 0; color: #fff;
+  }
+  .window-info { flex: 1; min-width: 0; line-height: 1.3; }
+  .window-app-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .window-title { font-size: 11px; color: var(--text-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'JetBrains Mono', monospace; }
+  .empty-list { padding: 20px 12px; text-align: center; color: var(--text-mute); font-size: 12px; }
+
+  /* ── Canvas Area ── */
+  .canvas-area { display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 8px; height: 35px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  .toolbar-group { display: flex; align-items: center; gap: 4px; }
+  .toolbar-divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+
+  .selector-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 10px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 12px; cursor: pointer; transition: var(--transition); position: relative;
+    color: var(--text);
+  }
+  .selector-btn:hover { border-color: var(--accent); background: var(--surface-3); }
+  .selector-btn .lbl { color: var(--text-mute); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .selector-btn .val { font-weight: 500; }
+  .selector-btn svg { width: 14px; height: 14px; color: var(--text-dim); }
+  .dropdown {
+    position: absolute; top: calc(100% + 2px); left: 0;
+    background: var(--surface-2); border: 1px solid var(--border-bright);
+    border-radius: var(--radius); padding: 2px; min-width: 100%;
+    z-index: 100; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .dropdown.open { display: block; }
+  .dropdown-item {
+    padding: 5px 10px; border-radius: 2px; font-size: 12px;
+    cursor: pointer; transition: var(--transition); white-space: nowrap;
+  }
+  .dropdown-item:hover { background: var(--surface-3); }
+  .dropdown-item.selected { color: var(--accent); }
+
+  .layout-switch { display: flex; gap: 2px; margin-left: auto; }
+  .layout-btn {
+    width: 28px; height: 26px; border-radius: var(--radius);
+    background: transparent; border: 1px solid transparent;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: var(--transition);
+  }
+  .layout-btn:hover { background: var(--surface-2); }
+  .layout-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+  .layout-btn svg { width: 16px; height: 16px; color: var(--text-dim); }
+  .layout-btn.active svg { color: var(--accent); }
+
+  /* ── Screen Canvas ── */
+  .canvas-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; overflow: hidden; }
+  .screen-mock {
+    width: 100%; max-width: 680px; aspect-ratio: 16/10;
+    background: var(--surface); border: 1px solid var(--border-bright);
+    border-radius: var(--radius); display: grid; position: relative; overflow: hidden;
+  }
+  .screen-label-bar {
+    position: absolute; top: -20px; left: 0;
+    font-size: 10px; color: var(--text-mute); font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .zone {
+    border: 1px dashed var(--border-bright); border-radius: var(--radius);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: var(--transition); position: relative; min-height: 50px;
+  }
+  .zone:hover { border-color: var(--accent); border-style: solid; background: var(--accent-soft); }
+  .zone.drag-over { border-color: var(--accent); border-style: solid; background: var(--accent-soft); }
+  .zone.has-window {
+    border-style: solid; border-color: var(--accent);
+    background: linear-gradient(135deg, var(--accent-soft), transparent);
+  }
+  .zone-label {
+    font-size: 10px; font-weight: 600; color: var(--text-mute);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .zone.has-window .zone-label { color: var(--accent); }
+  .zone-window {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 4px; padding: 3px 8px; background: var(--surface-3);
+    border-radius: var(--radius); font-size: 11px; font-weight: 500;
+  }
+  .zone-window .mini-icon {
+    width: 16px; height: 16px; border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; font-weight: 700; color: #fff;
+  }
+  .zone-remove {
+    position: absolute; top: 4px; right: 4px;
+    width: 16px; height: 16px; border-radius: 2px;
+    background: var(--surface-3); border: none; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--text-dim); transition: var(--transition);
+  }
+  .zone.has-window .zone-remove { display: flex; }
+  .zone-remove:hover { background: var(--danger); color: #fff; }
+  .zone-coords {
+    position: absolute; bottom: 4px; right: 4px;
+    font-size: 9px; color: var(--text-mute);
+    font-family: 'JetBrains Mono', monospace; opacity: 0.6;
+  }
+
+  /* ── Status Bar (bottom) ── */
+  .status-bar {
+    display: flex; align-items: center; height: 22px;
+    background: var(--accent-dim); color: #fff;
+    font-size: 11px; padding: 0 8px; gap: 12px; flex-shrink: 0;
+  }
+  .status-bar-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .status-bar-item svg { width: 12px; height: 12px; }
+  .status-bar-spacer { flex: 1; }
+  .status-bar.off { background: var(--surface-3); color: var(--text-dim); }
+
+  /* ── Action Bar ── */
+  .action-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 12px; border-top: 1px solid var(--border); background: var(--surface);
+  }
+  .action-info { font-size: 12px; color: var(--text-dim); }
+  .action-info strong { color: var(--accent); font-weight: 600; }
+  .action-info .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-mute); margin-left: 8px; }
+  .btn {
+    padding: 4px 16px; border: 1px solid transparent; border-radius: var(--radius);
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); font-family: inherit;
+  }
+  .btn-primary {
+    background: var(--accent-dim); color: #fff; border-color: var(--accent-dim);
+  }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-secondary { background: transparent; color: var(--text-dim); border-color: var(--border); margin-right: 4px; }
+  .btn-secondary:hover { background: var(--surface-2); color: var(--text); }
+
+  /* ── Right Panel ── */
+  .detail-section { border-bottom: 1px solid var(--border); }
+  .detail-section-title {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 12px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim);
+    background: var(--surface-2); cursor: pointer; transition: var(--transition);
+  }
+  .detail-section-title:hover { color: var(--text); }
+  .detail-section-title .chevron { transition: var(--transition); }
+  .detail-section.collapsed .chevron { transform: rotate(-90deg); }
+  .detail-section.collapsed .detail-body { display: none; }
+  .detail-body { padding: 8px 12px; }
+
+  .slider-group { margin-bottom: 10px; }
+  .slider-group:last-child { margin-bottom: 0; }
+  .slider-label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; margin-bottom: 4px;
+  }
+  .slider-label span:first-child { color: var(--text-dim); }
+  .slider-label span:last-child {
+    color: var(--accent); font-weight: 600;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  }
+  .slider {
+    width: 100%; height: 3px; -webkit-appearance: none;
+    background: var(--surface-3); border-radius: 2px; outline: none;
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; border-radius: 2px;
+    background: var(--accent); cursor: pointer; border: 1px solid var(--bg);
+  }
+
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 0; font-size: 12px;
+  }
+  .toggle-row .kbd-hint {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--text-mute); background: var(--surface-3);
+    padding: 1px 5px; border-radius: 2px;
+  }
+  .toggle {
+    width: 28px; height: 16px; background: var(--surface-3); border-radius: 8px;
+    position: relative; cursor: pointer; transition: var(--transition); flex-shrink: 0;
+  }
+  .toggle::after {
+    content: ''; position: absolute; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--text-dim); top: 2px; left: 2px; transition: var(--transition);
+  }
+  .toggle.on { background: var(--accent-dim); }
+  .toggle.on::after { left: 14px; background: #fff; }
+
+  .status-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; padding: 3px 0;
+  }
+  .status-row .lbl { color: var(--text-mute); font-family: 'JetBrains Mono', monospace; }
+  .status-row .val { font-weight: 500; }
+  .badge-ok {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: 600;
+    background: var(--accent-soft); color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .badge-ok .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+
+  /* ── Layouts View ── */
+  .layouts-content { flex: 1; overflow-y: auto; padding: 16px; }
+  .layouts-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+  .layouts-header h2 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .btn-new-layout {
+    padding: 4px 14px; background: var(--accent-dim); color: #fff;
+    border: 1px solid var(--accent-dim); border-radius: var(--radius);
+    font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: var(--transition);
+  }
+  .btn-new-layout:hover { background: var(--accent); }
+  .layouts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; padding: 16px; }
+  .layout-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px; cursor: pointer; transition: var(--transition);
+  }
+  .layout-card:hover { border-color: var(--accent); }
+  .layout-card.active { border-color: var(--accent); background: var(--accent-soft); }
+  .layout-card-preview {
+    aspect-ratio: 16/10; background: var(--bg); border-radius: 2px;
+    display: grid; gap: 2px; padding: 3px; margin-bottom: 10px;
+  }
+  .layout-card-preview > div { background: var(--surface-3); border-radius: 1px; }
+  .layout-card-name { font-size: 12px; font-weight: 600; }
+  .layout-card-meta { font-size: 10px; color: var(--text-mute); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+  .layout-card-actions { display: flex; gap: 4px; margin-top: 8px; }
+  .layout-action-btn {
+    padding: 2px 8px; font-size: 10px; border-radius: 2px;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim);
+    cursor: pointer; transition: var(--transition); font-weight: 500;
+  }
+  .layout-action-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Settings View ── */
+  .settings-content { flex: 1; overflow-y: auto; padding: 16px; max-width: 640px; }
+  .settings-group {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 10px; overflow: hidden;
+  }
+  .settings-group-title {
+    padding: 6px 12px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim);
+    border-bottom: 1px solid var(--border); background: var(--surface-2);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-bottom: 1px solid rgba(58,59,66,0.4); font-size: 12px;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row .label-group { display: flex; flex-direction: column; gap: 1px; }
+  .settings-row .sub { font-size: 11px; color: var(--text-mute); }
+  .modifier-select {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 3px 8px; border-radius: var(--radius); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%) translateY(150%);
+    background: var(--surface-2); border: 1px solid var(--accent);
+    color: var(--text); padding: 8px 16px; border-radius: var(--radius);
+    font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 8px;
+    z-index: 200; transition: transform 0.2s ease; pointer-events: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast .toast-icon { color: var(--accent); width: 14px; height: 14px; }
+  .toast.error { border-color: var(--danger); }
+  .toast.error .toast-icon { color: var(--danger); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
+</style>
+</head>
+<body>
+
+<!-- Title Bar -->
+<div class="titlebar">
+  <div class="traffic-lights">
+    <div class="tl tl-close"></div>
+    <div class="tl tl-min"></div>
+    <div class="tl tl-max"></div>
+  </div>
+  <span class="title-text mono">grid-screen <span class="accent">●</span> arrange</span>
+</div>
+
+<div style="display:flex; flex:1; overflow:hidden;">
+<!-- Activity Bar -->
+<div class="activity-bar">
+  <div class="activity-item active" data-tab="arrange" title="Arrange (A)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+  </div>
+  <div class="activity-item" data-tab="layouts" title="Layouts (L)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+  </div>
+  <div class="activity-item" data-tab="settings" title="Settings (,)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </div>
+  <div class="activity-spacer"></div>
+  <div class="activity-item" title="Keyboard Shortcuts" onclick="showToast('Press A / L / , to switch tabs')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>
+  </div>
+</div>
+
+<!-- ═══ ARRANGE VIEW ═══ -->
+<div class="view active" id="view-arrange" style="flex:1;">
+  <div class="arrange-main">
+    <!-- Window Catalog -->
+    <div class="side-panel left">
+      <div class="panel-header">
+        <span class="panel-title">Window Catalog</span>
+        <div class="panel-actions">
+          <div class="panel-action" title="Refresh" onclick="showToast('Catalog refreshed')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="search-wrap">
+        <input type="text" class="search-box" id="search" placeholder="Search windows...">
+      </div>
+      <ul class="window-list" id="window-list"></ul>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-area">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <div class="selector-btn" id="screen-selector">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span class="lbl">Screen</span>
+            <span class="val mono" id="screen-value">DP-1</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px"><polyline points="6 9 12 15 18 9"/></svg>
+            <div class="dropdown" id="screen-dropdown"></div>
+          </div>
+          <div class="selector-btn" id="layout-selector">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+            <span class="lbl">Layout</span>
+            <span class="val" id="layout-value">2 Columns</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px"><polyline points="6 9 12 15 18 9"/></svg>
+            <div class="dropdown" id="layout-dropdown"></div>
+          </div>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group">
+          <span class="mono" style="font-size:10px;color:var(--text-mute);">DRAG TO ASSIGN</span>
+        </div>
+        <div class="layout-switch" id="layout-quick"></div>
+      </div>
+
+      <div class="canvas-container">
+        <div class="screen-mock" id="screen-mock"></div>
+      </div>
+
+      <div class="action-bar">
+        <div class="action-info" id="action-info">
+          No windows assigned
+          <span class="mono">0/7</span>
+        </div>
+        <div>
+          <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+          <button class="btn btn-primary" id="btn-arrange" disabled>Arrange</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="side-panel right">
+      <div class="panel-header">
+        <span class="panel-title" id="detail-layout-name">Two Columns</span>
+        <div class="panel-actions">
+          <div class="panel-action" title="Edit Layout" onclick="showToast('Layout editor would open here')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">
+          <span>Geometry</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="detail-body">
+          <div class="slider-group">
+            <div class="slider-label"><span>Ratio</span><span id="ratio-val">50%</span></div>
+            <input type="range" class="slider" id="ratio" min="10" max="90" value="50">
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Gap</span><span id="gap-val">8 px</span></div>
+            <input type="range" class="slider" id="gap" min="0" max="40" value="8">
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Margin</span><span id="margin-val">12 px</span></div>
+            <input type="range" class="slider" id="margin" min="0" max="60" value="12">
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">
+          <span>Snap</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="detail-body">
+          <div class="toggle-row">
+            <span>Enable Snap</span>
+            <div class="toggle on" data-toggle="snapEnabled"></div>
+          </div>
+          <div class="toggle-row">
+            <span>Show Overlay</span>
+            <div class="toggle on" data-toggle="showOverlay"></div>
+          </div>
+          <div class="toggle-row">
+            <span>Modifier</span>
+            <span class="kbd-hint" id="modifier-display">Shift</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">
+          <span>System Status</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="detail-body">
+          <div class="status-row"><span class="lbl">session</span><span class="val">X11</span></div>
+          <div class="status-row"><span class="lbl">ewmh</span><span class="badge-ok"><span class="dot"></span>full</span></div>
+          <div class="status-row"><span class="lbl">workspace</span><span class="val mono">0</span></div>
+          <div class="status-row"><span class="lbl">screen</span><span class="val mono" id="screen-status">DP-1</span></div>
+          <div class="status-row"><span class="lbl">xrandr</span><span class="badge-ok"><span class="dot"></span>ok</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LAYOUTS VIEW ═══ -->
+<div class="view" id="view-layouts" style="flex:1; flex-direction:column;">
+  <div class="layouts-header">
+    <h2>Layouts</h2>
+    <button class="btn-new-layout" onclick="showToast('Layout editor would open here')">+ New Layout</button>
+  </div>
+  <div class="layouts-grid" id="layouts-grid"></div>
+</div>
+
+<!-- ═══ SETTINGS VIEW ═══ -->
+<div class="view" id="view-settings" style="flex:1; flex-direction:column;">
+  <div class="settings-content">
+    <div class="settings-group">
+      <div class="settings-group-title">// Snap Behavior</div>
+      <div class="settings-row">
+        <div class="label-group"><span>Enable Modifier Snap</span><span class="sub">Hold modifier while dragging a window to snap</span></div>
+        <div class="toggle on" data-toggle="snapEnabled"></div>
+      </div>
+      <div class="settings-row">
+        <div class="label-group"><span>Snap Modifier Key</span><span class="sub">Key to hold during drag</span></div>
+        <select class="modifier-select" id="modifier-select"><option>Shift</option><option>Ctrl</option><option>Alt</option><option>Super</option></select>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">// Defaults</div>
+      <div class="settings-row"><div class="label-group"><span>Default Gap</span><span class="sub">Space between zones for new layouts</span></div><span class="mono" style="color:var(--accent)">8px</span></div>
+      <div class="settings-row"><div class="label-group"><span>Default Margin</span><span class="sub">Space around outer screen edge</span></div><span class="mono" style="color:var(--accent)">12px</span></div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">// General</div>
+      <div class="settings-row"><div class="label-group"><span>Start at Login</span><span class="sub">Launch Grid Screen automatically</span></div><div class="toggle" data-toggle="autostart"></div></div>
+      <div class="settings-row"><div class="label-group"><span>Minimize to Tray</span><span class="sub">Keep running when window closed</span></div><div class="toggle on" data-toggle="tray"></div></div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">// System Status</div>
+      <div class="settings-row"><span class="mono" style="color:var(--text-mute)">session_type</span><span>X11</span></div>
+      <div class="settings-row"><span class="mono" style="color:var(--text-mute)">ewmh_support</span><span class="badge-ok"><span class="dot"></span>full</span></div>
+      <div class="settings-row"><span class="mono" style="color:var(--text-mute)">window_manager</span><span class="mono">Mutter</span></div>
+      <div class="settings-row"><span class="mono" style="color:var(--text-mute)">xrandr</span><span class="badge-ok"><span class="dot"></span>available</span></div>
+      <div class="settings-row"><span class="mono" style="color:var(--text-mute)">workspace</span><span class="mono">0 (Desktop 1)</span></div>
+      <div class="settings-row"><span class="mono" style="color:var(--text-mute)">screens</span><span class="mono">2 [DP-1, HDMI-2]</span></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Status Bar -->
+<div class="status-bar" id="status-bar">
+  <div class="status-bar-item" id="snap-toggle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
+    <span id="snap-status-text">SNAP ON</span>
+  </div>
+  <div class="status-bar-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+    <span id="screen-status-bar">DP-1 2560x1440</span>
+  </div>
+  <div class="status-bar-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+    <span id="layout-status-bar">2 Columns</span>
+  </div>
+  <div class="status-bar-spacer"></div>
+  <div class="status-bar-item">
+    <span id="assigned-status">0 assigned</span>
+  </div>
+  <div class="status-bar-item">
+    <span class="mono">Shift+Drag to snap</span>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+  <span id="toast-msg">Done</span>
+</div>
+
+<script>
+const state = {
+  activeTab: 'arrange',
+  selectedScreen: 'DP-1',
+  selectedLayout: '2col',
+  assignments: {},
+  snapEnabled: true,
+  showOverlay: true,
+  autostart: false,
+  tray: true,
+  gap: 8,
+  margin: 12,
+  ratio: 50,
+  modifier: 'Shift',
+  windows: [
+    { id:'w1', app:'Firefox', title:'MDN Web Docs', icon:'Fx', color:'#ff7139' },
+    { id:'w2', app:'Terminal', title:'~/code/grid-screen', icon:'Te', color:'#2d2d2d' },
+    { id:'w3', app:'VS Code', title:'layout.rs', icon:'VS', color:'#0078d4' },
+    { id:'w4', app:'Slack', title:'#engineering', icon:'Sl', color:'#4a154b' },
+    { id:'w5', app:'Spotify', title:'Lo-fi Beats', icon:'Sp', color:'#1db954' },
+    { id:'w6', app:'Files', title:'~/Downloads', icon:'Na', color:'#5c8dbc' },
+    { id:'w7', app:'GIMP', title:'screenshot.png', icon:'Gi', color:'#5c4740' },
+  ],
+  screens: [
+    { id:'DP-1', label:'DP-1 (Primary)', res:'2560x1440' },
+    { id:'HDMI-2', label:'HDMI-2', res:'1920x1080' },
+  ],
+  layouts: [
+    { id:'2col', name:'2 Columns', cols:'1fr 1fr', zones:2, icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/>' },
+    { id:'3col', name:'3 Columns', cols:'1fr 1fr 1fr', zones:3, icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>' },
+    { id:'focus', name:'Focus+Stack', cols:'2fr 1fr', rows:'1fr 1fr', zones:3, spanFirst:true, icon:'<rect x="3" y="3" width="12" height="18" rx="2"/><rect x="17" y="3" width="4" height="8" rx="1"/><rect x="17" y="13" width="4" height="8" rx="1"/>' },
+    { id:'main-side', name:'Main+Side', cols:'3fr 1fr', zones:2, icon:'<rect x="3" y="3" width="13" height="18" rx="2"/><rect x="18" y="3" width="3" height="18" rx="1"/>' },
+    { id:'3wide', name:'3 Wide Center', cols:'1fr 2fr 1fr', zones:3, icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>' },
+  ],
+  savedLayouts: [
+    { id:'s1', name:'Work Setup', base:'2col', zones:2, created:'Jul 10' },
+    { id:'s2', name:'Code Sprint', base:'focus', zones:3, created:'Jul 8' },
+    { id:'s3', name:'Presentation', base:'main-side', zones:2, created:'Jul 5' },
+  ],
+};
+
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const getLayout = () => state.layouts.find(l => l.id === state.selectedLayout);
+const getWindow = id => state.windows.find(w => w.id === id);
+const aCount = () => Object.keys(state.assignments).length;
+const aWinIds = () => new Set(Object.values(state.assignments));
+
+function renderAll() { renderWindowList(); renderZones(); updateActionInfo(); updateStatusBar(); }
+
+function renderWindowList(filter = '') {
+  const list = $('#window-list'); const fl = filter.toLowerCase();
+  list.innerHTML = ''; let vis = 0;
+  state.windows.forEach(w => {
+    if (fl && !w.app.toLowerCase().includes(fl) && !w.title.toLowerCase().includes(fl)) return;
+    vis++;
+    const assigned = aWinIds().has(w.id);
+    const zk = Object.keys(state.assignments).find(k => state.assignments[k] === w.id);
+    const li = document.createElement('li');
+    li.className = 'window-card' + (assigned ? ' assigned' : '');
+    li.draggable = !assigned; li.dataset.windowId = w.id;
+    li.innerHTML = `
+      <div class="app-icon" style="background:${w.color}">${w.icon}</div>
+      <div class="window-info"><div class="window-app-name">${w.app}</div><div class="window-title">${w.title}</div></div>
+      ${assigned ? `<span class="assign-badge">Z${parseInt(zk)+1}</span>` : ''}`;
+    if (!assigned) {
+      li.addEventListener('dragstart', e => { li.classList.add('dragging'); e.dataTransfer.setData('text/plain', w.id); e.dataTransfer.effectAllowed = 'move'; });
+      li.addEventListener('dragend', () => li.classList.remove('dragging'));
+    }
+    list.appendChild(li);
+  });
+  if (vis === 0) list.innerHTML = '<div class="empty-list">No windows found</div>';
+}
+
+function renderZones() {
+  const mock = $('#screen-mock'); const layout = getLayout();
+  const scr = state.screens.find(s => s.id === state.selectedScreen);
+  mock.innerHTML = `<div class="screen-label-bar">${state.selectedScreen}  ${scr.res}</div>`;
+  let cols = layout.cols;
+  if (layout.zones === 2 && state.ratio !== 50) cols = `${state.ratio}fr ${100-state.ratio}fr`;
+  mock.style.gridTemplateColumns = cols;
+  mock.style.gridTemplateRows = layout.rows || '1fr';
+  mock.style.gap = state.gap + 'px';
+  mock.style.padding = state.margin + 'px';
+  $('#screen-status').textContent = state.selectedScreen;
+  $('#screen-status-bar').textContent = `${state.selectedScreen} ${scr.res}`;
+
+  for (let i = 0; i < layout.zones; i++) {
+    const zone = document.createElement('div');
+    zone.className = 'zone'; zone.dataset.zoneIndex = i;
+    if (layout.spanFirst && i === 0) zone.style.gridRow = 'span 2';
+    const wid = state.assignments[i];
+    if (wid) {
+      const w = getWindow(wid);
+      zone.classList.add('has-window');
+      zone.innerHTML = `
+        <button class="zone-remove" data-zone="${i}">&times;</button>
+        <span class="zone-label">Z${i+1}</span>
+        <div class="zone-window"><div class="mini-icon" style="background:${w.color}">${w.icon}</div>${w.app}</div>
+        <span class="zone-coords">zone_${i}</span>`;
+      zone.querySelector('.zone-remove').addEventListener('click', e => { e.stopPropagation(); delete state.assignments[i]; renderAll(); });
+    } else {
+      zone.innerHTML = `<span class="zone-label">Z${i+1}</span><span class="zone-coords">empty</span>`;
+    }
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('drag-over');
+      const wid = e.dataTransfer.getData('text/plain'); if (!wid) return;
+      for (const [k, v] of Object.entries(state.assignments)) { if (v === wid) delete state.assignments[k]; }
+      state.assignments[i] = wid; renderAll();
+    });
+    mock.appendChild(zone);
+  }
+}
+
+function renderLayoutQuick() {
+  const c = $('#layout-quick'); c.innerHTML = '';
+  state.layouts.forEach(l => {
+    const b = document.createElement('div');
+    b.className = 'layout-btn' + (l.id === state.selectedLayout ? ' active' : '');
+    b.title = l.name;
+    b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${l.icon}</svg>`;
+    b.addEventListener('click', () => switchLayout(l.id));
+    c.appendChild(b);
+  });
+}
+
+function renderDropdowns() {
+  const ldd = $('#layout-dropdown'); ldd.innerHTML = '';
+  state.layouts.forEach(l => {
+    const i = document.createElement('div');
+    i.className = 'dropdown-item' + (l.id === state.selectedLayout ? ' selected' : '');
+    i.textContent = l.name;
+    i.addEventListener('click', e => { e.stopPropagation(); switchLayout(l.id); ldd.classList.remove('open'); });
+    ldd.appendChild(i);
+  });
+  const sdd = $('#screen-dropdown'); sdd.innerHTML = '';
+  state.screens.forEach(s => {
+    const i = document.createElement('div');
+    i.className = 'dropdown-item' + (s.id === state.selectedScreen ? ' selected' : '');
+    i.textContent = `${s.label} ${s.res}`;
+    i.addEventListener('click', e => { e.stopPropagation(); state.selectedScreen = s.id; $('#screen-value').textContent = s.id; renderZones(); updateStatusBar(); sdd.classList.remove('open'); });
+    sdd.appendChild(i);
+  });
+}
+
+function renderLayoutsView() {
+  const grid = $('#layouts-grid'); grid.innerHTML = '';
+  const all = [...state.layouts, ...state.savedLayouts.map(sl => {
+    const bl = state.layouts.find(l => l.id === sl.base);
+    return {...sl, _saved:true, cols:bl?.cols||'1fr 1fr', rows:bl?.rows, spanFirst:bl?.spanFirst};
+  })];
+  all.forEach(l => {
+    const card = document.createElement('div');
+    card.className = 'layout-card' + (l.id === state.selectedLayout ? ' active' : '');
+    let prev = '';
+    for (let i = 0; i < l.zones; i++) prev += `<div ${l.spanFirst&&i===0?'style="grid-row:span 2"':''}></div>`;
+    card.innerHTML = `
+      <div class="layout-card-preview" style="grid-template-columns:${l.cols};${l.rows?'grid-template-rows:'+l.rows:''}">${prev}</div>
+      <div class="layout-card-name">${l.name}</div>
+      <div class="layout-card-meta">${l._saved?'custom':'preset'} / ${l.zones}z${l._saved?' / '+l.created:''}</div>
+      <div class="layout-card-actions">
+        <span class="layout-action-btn">use</span>
+        ${l._saved?'<span class="layout-action-btn">edit</span><span class="layout-action-btn">del</span>':'<span class="layout-action-btn">dup</span>'}
+      </div>`;
+    card.addEventListener('click', () => { if(!l._saved) switchLayout(l.id); else showToast(`"${l.name}" loaded`); switchTab('arrange'); });
+    grid.appendChild(card);
+  });
+}
+
+function switchLayout(id) {
+  state.selectedLayout = id;
+  Object.keys(state.assignments).forEach(k => { if (parseInt(k) >= getLayout().zones) delete state.assignments[k]; });
+  $('#layout-value').textContent = getLayout().name;
+  $('#detail-layout-name').textContent = getLayout().name;
+  $('#layout-status-bar').textContent = getLayout().name;
+  renderLayoutQuick(); renderDropdowns(); renderAll();
+}
+
+function updateActionInfo() {
+  const c = aCount();
+  const info = $('#action-info'); const btn = $('#btn-arrange');
+  if (c === 0) { info.innerHTML = `No windows assigned <span class="mono">0/${state.windows.length}</span>`; btn.disabled = true; btn.textContent = 'Arrange'; }
+  else { info.innerHTML = `<strong>${c}</strong> assigned <span class="mono">${c}/${state.windows.length}</span>`; btn.disabled = false; btn.textContent = `Arrange ${c}`; }
+}
+
+function updateStatusBar() {
+  $('#assigned-status').textContent = `${aCount()} assigned`;
+}
+
+function clearAll() { if (aCount() === 0) return; state.assignments = {}; renderAll(); showToast('Cleared'); }
+
+function doArrange() {
+  const c = aCount(); if (c === 0) return;
+  const btn = $('#btn-arrange'); btn.textContent = 'Working...'; btn.disabled = true;
+  setTimeout(() => {
+    showToast(`Arranged ${c} window${c>1?'s':''} on ${state.selectedScreen}`);
+    setTimeout(() => { state.assignments = {}; renderAll(); }, 800);
+  }, 800);
+}
+
+function showToast(msg, err = false) {
+  const t = $('#toast'); $('#toast-msg').textContent = msg;
+  t.classList.toggle('error', err); t.classList.add('show');
+  clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function switchTab(tab) {
+  state.activeTab = tab;
+  $$('.activity-item[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + tab));
+  if (tab === 'layouts') renderLayoutsView();
+  // Update title bar text
+  const labels = { arrange: 'arrange', layouts: 'layouts', settings: 'settings' };
+  document.querySelector('.title-text').innerHTML = `grid-screen <span class="accent">●</span> ${labels[tab]}`;
+}
+
+function updateSnapStatus() {
+  const sb = $('#status-bar'); const txt = $('#snap-status-text');
+  const md = $('#modifier-display');
+  if (state.snapEnabled) { sb.classList.remove('off'); txt.textContent = `SNAP ON [${state.modifier}]`; md.textContent = state.modifier; }
+  else { sb.classList.add('off'); txt.textContent = 'SNAP OFF'; }
+}
+
+function init() {
+  // Activity bar tabs
+  $$('.activity-item[data-tab]').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.key === 'a' || e.key === 'A') switchTab('arrange');
+    if (e.key === 'l' || e.key === 'L') switchTab('layouts');
+    if (e.key === ',') switchTab('settings');
+  });
+
+  // Search
+  $('#search').addEventListener('input', e => renderWindowList(e.target.value));
+  $('#btn-arrange').addEventListener('click', doArrange);
+
+  // Dropdowns
+  $('#screen-selector').addEventListener('click', e => { if (e.target.closest('.dropdown-item')) return; $('#screen-dropdown').classList.toggle('open'); $('#layout-dropdown').classList.remove('open'); });
+  $('#layout-selector').addEventListener('click', e => { if (e.target.closest('.dropdown-item')) return; $('#layout-dropdown').classList.toggle('open'); $('#screen-dropdown').classList.remove('open'); });
+  document.addEventListener('click', e => { if (!e.target.closest('#screen-selector')) $('#screen-dropdown').classList.remove('open'); if (!e.target.closest('#layout-selector')) $('#layout-dropdown').classList.remove('open'); });
+
+  // Toggles
+  $$('[data-toggle]').forEach(t => t.addEventListener('click', () => { t.classList.toggle('on'); state[t.dataset.toggle] = t.classList.contains('on'); if (t.dataset.toggle === 'snapEnabled') updateSnapStatus(); }));
+
+  // Status bar snap toggle
+  $('#snap-toggle').addEventListener('click', () => {
+    state.snapEnabled = !state.snapEnabled;
+    document.querySelectorAll('[data-toggle="snapEnabled"]').forEach(t => t.classList.toggle('on', state.snapEnabled));
+    updateSnapStatus();
+  });
+
+  // Sliders
+  $('#ratio').addEventListener('input', e => { state.ratio = parseInt(e.target.value); $('#ratio-val').textContent = state.ratio + '%'; renderZones(); });
+  $('#gap').addEventListener('input', e => { state.gap = parseInt(e.target.value); $('#gap-val').textContent = state.gap + ' px'; renderZones(); });
+  $('#margin').addEventListener('input', e => { state.margin = parseInt(e.target.value); $('#margin-val').textContent = state.margin + ' px'; renderZones(); });
+
+  // Modifier
+  $('#modifier-select').addEventListener('change', e => { state.modifier = e.target.value; updateSnapStatus(); showToast(`Modifier: ${e.target.value}`); });
+
+  // Collapsible sections
+  $$('.detail-section-title').forEach(t => t.addEventListener('click', () => t.parentElement.classList.toggle('collapsed')));
+
+  // Initial render
+  renderDropdowns(); renderLayoutQuick(); renderAll(); updateSnapStatus();
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grid Screen — UI Mockup Gallery</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0d0d12;
+    color: #e4e4ef;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 60px 24px;
+  }
+  h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 8px; text-align: center; }
+  .subtitle { font-size: 16px; color: #8a8aa0; margin-bottom: 48px; text-align: center; max-width: 560px; line-height: 1.6; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px; max-width: 1200px; width: 100%; }
+  .card {
+    border-radius: 16px; overflow: hidden; text-decoration: none;
+    transition: 0.2s cubic-bezier(0.4,0,0.2,1); display: block; cursor: pointer;
+    border: 1px solid #2a2a3a; background: #12121a;
+  }
+  .card:hover { transform: translateY(-4px); border-color: #5b8def; box-shadow: 0 12px 48px rgba(91,141,239,0.15); }
+  .card-preview { height: 220px; position: relative; overflow: hidden; }
+  .card-preview.d1 { background: linear-gradient(135deg, #0a0a0f, #1a1a26); }
+  .card-preview.d2 { background: linear-gradient(135deg, #faf8f5, #ebe6e0); }
+  .card-preview.d3 { background: linear-gradient(135deg, #1a1b1e, #2a2b30); }
+  .card-badge {
+    position: absolute; top: 16px; left: 16px;
+    font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .card-badge.blue { background: rgba(91,141,239,0.15); color: #5b8def; }
+  .card-badge.orange { background: rgba(232,112,60,0.15); color: #e8703c; }
+  .card-badge.green { background: rgba(63,185,80,0.15); color: #3fb950; }
+  .card-mini-ui {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 80%; display: flex; gap: 4px; padding: 4px;
+  }
+  .card-mini-ui > div { flex: 1; border-radius: 4px; height: 100px; }
+  .card-mini-ui.d1 > div { background: rgba(91,141,239,0.2); border: 1px solid rgba(91,141,239,0.4); }
+  .card-mini-ui.d2 > div { background: rgba(232,112,60,0.15); border: 2px solid rgba(232,112,60,0.4); border-radius: 8px; }
+  .card-mini-ui.d3 > div { background: rgba(63,185,80,0.15); border: 1px solid rgba(63,185,80,0.4); }
+  .card-body { padding: 24px; }
+  .card-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.02em; }
+  .card-desc { font-size: 14px; color: #8a8aa0; line-height: 1.5; margin-bottom: 16px; }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 4px; background: #22222f; color: #8a8aa0; }
+  .open-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; font-size: 14px; font-weight: 600; color: #5b8def; }
+  .card:hover .open-link { gap: 10px; }
+  .features { margin-top: 32px; padding: 24px; background: #12121a; border: 1px solid #2a2a3a; border-radius: 12px; max-width: 1200px; width: 100%; }
+  .features-title { font-size: 14px; font-weight: 700; color: #8a8aa0; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; }
+  .features-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .feature { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #e4e4ef; }
+  .feature svg { width: 16px; height: 16px; color: #3fb950; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<h1>Grid Screen UI Mockups</h1>
+<p class="subtitle">3 phien bản giao diện desktop app, mỗi mẫu có đầy đủ tương tác. Click để mở thử nghiệm đầy đủ.</p>
+
+<div class="gallery">
+  <a class="card" href="design-1-aurora-dark.html" target="_blank">
+    <div class="card-preview d1">
+      <div class="card-badge blue">Design 1</div>
+      <div class="card-mini-ui d1"><div></div><div></div></div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Aurora Dark</div>
+      <div class="card-desc">Tối giản, hiện đại, dark theme với accent xanh dương. Phong cách Linear/Vercel — tập trung không gian âm và typography.</div>
+      <div class="card-tags">
+        <span class="tag">Dark</span><span class="tag">Minimal</span><span class="tag">Inter</span><span class="tag">3-column</span>
+      </div>
+      <span class="open-link">
+        Open Mockup
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </span>
+    </div>
+  </a>
+
+  <a class="card" href="design-2-daylight-warm.html" target="_blank">
+    <div class="card-preview d2">
+      <div class="card-badge orange">Design 2</div>
+      <div class="card-mini-ui d2"><div></div><div></div></div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Daylight Warm</div>
+      <div class="card-desc">Light theme ấm áp, bo góc nhiều, gradient nắng cam. Phong cách Notion/Arc — thân thiện, dễ gần cho user phổ thông.</div>
+      <div class="card-tags">
+        <span class="tag">Light</span><span class="tag">Warm</span><span class="tag">Jakarta Sans</span><span class="tag">Card-based</span>
+      </div>
+      <span class="open-link">
+        Open Mockup
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </span>
+    </div>
+  </a>
+
+  <a class="card" href="design-3-grid-pro.html" target="_blank">
+    <div class="card-preview d3">
+      <div class="card-badge green">Design 3</div>
+      <div class="card-mini-ui d3"><div></div><div></div></div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">Grid Pro</div>
+      <div class="card-desc">Compact, technical, dense info. Phong cách JetBrains/VS Code — activity bar, status bar, phím tắt, monospace labels.</div>
+      <div class="card-tags">
+        <span class="tag">Dark</span><span class="tag">Compact</span><span class="tag">JetBrains Mono</span><span class="tag">IDE-style</span>
+      </div>
+      <span class="open-link">
+        Open Mockup
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </span>
+    </div>
+  </a>
+</div>
+
+<div class="features">
+  <div class="features-title">Tính năng tương tác có trong mỗi mockup</div>
+  <div class="features-list">
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Drag-and-drop cửa sổ vào zone</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Chuyển tab Arrange/Layouts/Settings</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Đổi layout (2-col, 3-col, Focus, Side)</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Slider Gap/Margin/Divider Ratio</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Toggle Snap on/off</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Search/lọc window catalog</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Đổi screen (DP-1 / HDMI-2)</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Nút Arrange hoạt động + toast</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Xóa cửa sổ khỏi zone (click X)</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Layout gallery (tab Layouts)</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Settings đầy đủ (tab Settings)</div>
+    <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Đổi Snap Modifier Key</div>
+  </div>
+</div>
+
+</body>
+</html>

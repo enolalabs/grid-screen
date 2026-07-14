@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grid Screen — Aurora (Dark Minimal)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-2: #1a1a26;
+    --surface-3: #22222f;
+    --border: #2a2a3a;
+    --text: #e4e4ef;
+    --text-dim: #8a8aa0;
+    --text-mute: #555568;
+    --accent: #5b8def;
+    --accent-glow: rgba(91, 141, 239, 0.15);
+    --accent-soft: rgba(91, 141, 239, 0.08);
+    --success: #4ade80;
+    --danger: #f87171;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Title Bar ── */
+  .titlebar {
+    display: flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .traffic-lights { display: flex; gap: 8px; }
+  .tl { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; }
+  .tl-close { background: #ff5f57; }
+  .tl-min { background: #febc2e; }
+  .tl-max { background: #28c840; }
+  .title-text { font-size: 13px; font-weight: 500; color: var(--text-dim); margin-left: auto; margin-right: auto; padding-right: 60px; }
+
+  /* ── Nav Tabs ── */
+  .nav-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    height: 44px;
+    flex-shrink: 0;
+  }
+  .nav-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: var(--transition);
+    position: relative;
+    top: 1px;
+    user-select: none;
+  }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .nav-tab svg { width: 16px; height: 16px; }
+
+  /* ── Views ── */
+  .view { display: none; flex: 1; overflow: hidden; }
+  .view.active { display: flex; flex-direction: column; }
+
+  /* ── Main 3-col Layout (Arrange) ── */
+  .arrange-main {
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Window Catalog Panel ── */
+  .catalog-panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header { padding: 16px 16px 8px; }
+  .panel-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-mute); margin-bottom: 12px;
+  }
+  .search-box {
+    width: 100%; padding: 8px 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 13px;
+    font-family: inherit; outline: none; transition: var(--transition);
+  }
+  .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .search-box::placeholder { color: var(--text-mute); }
+
+  .window-list { flex: 1; overflow-y: auto; padding: 8px; list-style: none; }
+  .window-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    cursor: grab; transition: var(--transition);
+    border: 1px solid transparent; margin-bottom: 4px; position: relative;
+  }
+  .window-card:hover { background: var(--surface-2); border-color: var(--border); }
+  .window-card.assigned { opacity: 0.4; }
+  .window-card.dragging { opacity: 0.3; border-color: var(--accent) !important; }
+  .window-card.assigned .assign-badge {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    background: var(--accent-soft); color: var(--accent); pointer-events: none;
+  }
+  .window-card.hidden { display: none; }
+  .app-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0; color: #fff;
+  }
+  .window-info { flex: 1; min-width: 0; }
+  .window-app-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .window-title { font-size: 11px; color: var(--text-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .empty-list { padding: 24px 16px; text-align: center; color: var(--text-mute); font-size: 13px; }
+
+  /* ── Canvas Center ── */
+  .canvas-area { display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+  .canvas-toolbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+  }
+  .selector {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: var(--transition);
+    position: relative;
+  }
+  .selector:hover { border-color: var(--accent); }
+  .selector-label { color: var(--text-dim); font-size: 11px; }
+  .selector-value { color: var(--text); }
+  .selector-icon { width: 14px; height: 14px; color: var(--text-dim); }
+  .dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 4px; min-width: 100%;
+    z-index: 100; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .dropdown.open { display: block; }
+  .dropdown-item {
+    padding: 8px 12px; border-radius: 4px; font-size: 13px;
+    cursor: pointer; transition: var(--transition); white-space: nowrap;
+  }
+  .dropdown-item:hover { background: var(--surface-3); }
+  .dropdown-item.selected { color: var(--accent); }
+
+  .layout-quick { display: flex; gap: 6px; margin-left: auto; }
+  .layout-btn {
+    width: 36px; height: 36px; border-radius: var(--radius-sm);
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: var(--transition);
+  }
+  .layout-btn:hover { border-color: var(--accent); }
+  .layout-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+  .layout-btn svg { width: 18px; height: 18px; color: var(--text-dim); }
+  .layout-btn.active svg { color: var(--accent); }
+
+  /* ── Screen Canvas ── */
+  .canvas-container {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 32px; overflow: hidden;
+  }
+  .screen-mock {
+    width: 100%; max-width: 720px; aspect-ratio: 16/10;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; display: grid; position: relative; overflow: hidden;
+  }
+  .screen-label-bar {
+    position: absolute; top: -24px; left: 0;
+    font-size: 11px; color: var(--text-mute); font-weight: 500;
+  }
+
+  .zone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: var(--transition); position: relative;
+    min-height: 60px;
+  }
+  .zone:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .zone.drag-over { border-color: var(--accent); background: var(--accent-soft); transform: scale(1.02); }
+  .zone.has-window {
+    border-style: solid; border-color: var(--accent);
+    background: linear-gradient(135deg, var(--accent-soft), transparent);
+  }
+  .zone-label {
+    font-size: 11px; font-weight: 600; color: var(--text-mute);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .zone.has-window .zone-label { color: var(--accent); }
+  .zone-window {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 8px; padding: 6px 12px; background: var(--surface-3);
+    border-radius: var(--radius-sm); font-size: 12px; font-weight: 500;
+  }
+  .zone-remove {
+    position: absolute; top: 6px; right: 6px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--surface-3); border: none; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+    font-size: 12px; color: var(--text-dim); transition: var(--transition);
+  }
+  .zone.has-window .zone-remove { display: flex; }
+  .zone-remove:hover { background: var(--danger); color: #fff; }
+
+  /* ── Action Bar ── */
+  .action-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface);
+  }
+  .action-info { font-size: 13px; color: var(--text-dim); }
+  .action-info strong { color: var(--accent); }
+  .btn {
+    padding: 10px 28px; border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: var(--transition);
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: var(--accent); color: #fff; box-shadow: 0 0 24px var(--accent-glow);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 32px var(--accent-glow); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-secondary {
+    background: var(--surface-3); color: var(--text); margin-right: 8px;
+  }
+  .btn-secondary:hover { background: var(--border); }
+
+  /* ── Detail Panel ── */
+  .detail-panel {
+    background: var(--surface); border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .detail-section { padding: 16px; border-bottom: 1px solid var(--border); }
+  .detail-section-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-mute); margin-bottom: 12px;
+  }
+  .slider-group { margin-bottom: 14px; }
+  .slider-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .slider-label span:last-child { color: var(--accent); font-weight: 500; }
+  .slider {
+    width: 100%; height: 4px; -webkit-appearance: none;
+    background: var(--surface-3); border-radius: 2px; outline: none;
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); cursor: pointer; border: 2px solid var(--bg);
+  }
+
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; font-size: 13px;
+  }
+  .toggle {
+    width: 36px; height: 20px; background: var(--surface-3); border-radius: 10px;
+    position: relative; cursor: pointer; transition: var(--transition); flex-shrink: 0;
+  }
+  .toggle::after {
+    content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--text-dim); top: 2px; left: 2px; transition: var(--transition);
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle.on::after { left: 18px; background: #fff; }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;
+    background: rgba(74, 222, 128, 0.1); color: var(--success);
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+  .status-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; }
+  .status-row .lbl { color: var(--text-dim); }
+
+  /* ── Layouts View ── */
+  .layouts-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px; padding: 24px; overflow-y: auto;
+  }
+  .layout-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; cursor: pointer; transition: var(--transition);
+  }
+  .layout-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .layout-card.active { border-color: var(--accent); background: var(--accent-soft); }
+  .layout-card-preview {
+    aspect-ratio: 16/10; background: var(--surface-2); border-radius: var(--radius-sm);
+    display: grid; gap: 4px; padding: 6px; margin-bottom: 14px;
+  }
+  .layout-card-preview > div { background: var(--surface-3); border-radius: 3px; }
+  .layout-card-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .layout-card-meta { font-size: 11px; color: var(--text-mute); }
+  .layout-card-actions { display: flex; gap: 6px; margin-top: 12px; }
+  .layout-action-btn {
+    padding: 4px 10px; font-size: 11px; border-radius: 4px;
+    background: var(--surface-3); border: 1px solid var(--border); color: var(--text-dim);
+    cursor: pointer; transition: var(--transition);
+  }
+  .layout-action-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .btn-new-layout {
+    padding: 10px 20px; background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: var(--transition);
+  }
+  .btn-new-layout:hover { transform: translateY(-1px); }
+  .layouts-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+  }
+  .layouts-header h2 { font-size: 18px; font-weight: 700; }
+
+  /* ── Settings View ── */
+  .settings-main { overflow-y: auto; padding: 24px; max-width: 640px; width: 100%; }
+  .settings-group {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .settings-group-title {
+    padding: 14px 20px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-mute); border-bottom: 1px solid var(--border);
+  }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 14px;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row .label-group { display: flex; flex-direction: column; gap: 2px; }
+  .settings-row .sub { font-size: 12px; color: var(--text-dim); }
+  .modifier-select {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 12px; border-radius: var(--radius-sm); font-family: inherit; font-size: 13px;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(120%);
+    background: var(--surface-2); border: 1px solid var(--success); color: var(--text);
+    padding: 12px 24px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px; z-index: 200;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast .toast-icon { color: var(--success); width: 20px; height: 20px; }
+  .toast.error { border-color: var(--danger); }
+  .toast.error .toast-icon { color: var(--danger); }
+
+  /* ── Drag Ghost ── */
+  .drag-ghost {
+    position: fixed; pointer-events: none; z-index: 1000; opacity: 0.8;
+    background: var(--surface-2); border: 1px solid var(--accent);
+    border-radius: var(--radius-sm); padding: 8px 14px; font-size: 13px;
+    font-weight: 500; display: flex; align-items: center; gap: 8px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+</style>
+</head>
+<body>
+
+<!-- Title Bar -->
+<div class="titlebar">
+  <div class="traffic-lights">
+    <div class="tl tl-close"></div>
+    <div class="tl tl-min"></div>
+    <div class="tl tl-max"></div>
+  </div>
+  <span class="title-text">Grid Screen</span>
+</div>
+
+<!-- Nav Tabs -->
+<div class="nav-tabs">
+  <div class="nav-tab active" data-tab="arrange">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Arrange
+  </div>
+  <div class="nav-tab" data-tab="layouts">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+    Layouts
+  </div>
+  <div class="nav-tab" data-tab="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Settings
+  </div>
+</div>
+
+<!-- ════════ ARRANGE VIEW ════════ -->
+<div class="view active" id="view-arrange">
+  <div class="arrange-main">
+    <!-- Window Catalog -->
+    <div class="catalog-panel">
+      <div class="panel-header">
+        <div class="panel-title">Window Catalog</div>
+        <input type="text" class="search-box" id="search" placeholder="Search windows...">
+      </div>
+      <ul class="window-list" id="window-list"></ul>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-area">
+      <div class="canvas-toolbar">
+        <div class="selector" id="screen-selector">
+          <svg class="selector-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <div>
+            <div class="selector-label">Screen</div>
+            <div class="selector-value" id="screen-value">DP-1 (Primary)</div>
+          </div>
+          <div class="dropdown" id="screen-dropdown"></div>
+        </div>
+        <div class="selector" id="layout-selector">
+          <svg class="selector-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+          <div>
+            <div class="selector-label">Layout</div>
+            <div class="selector-value" id="layout-value">Two Columns</div>
+          </div>
+          <div class="dropdown" id="layout-dropdown"></div>
+        </div>
+        <div class="layout-quick" id="layout-quick"></div>
+      </div>
+
+      <div class="canvas-container">
+        <div class="screen-mock" id="screen-mock">
+          <div class="screen-label-bar" id="screen-label">DP-1  2560 x 1440</div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <div class="action-info" id="action-info">No windows assigned</div>
+        <div>
+          <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+          <button class="btn btn-primary" id="btn-arrange" disabled>Arrange Windows</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail Panel -->
+    <div class="detail-panel">
+      <div class="detail-section">
+        <div class="detail-section-title" id="detail-layout-name">Layout: Two Columns</div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Divider Ratio</span><span id="ratio-val">50%</span></div>
+          <input type="range" class="slider" id="ratio" min="10" max="90" value="50">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Gap</span><span id="gap-val">10 px</span></div>
+          <input type="range" class="slider" id="gap" min="0" max="40" value="10">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Margin</span><span id="margin-val">16 px</span></div>
+          <input type="range" class="slider" id="margin" min="0" max="60" value="16">
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Snap</div>
+        <div class="toggle-row">
+          <span>Enable Snap</span>
+          <div class="toggle on" data-toggle="snapEnabled"></div>
+        </div>
+        <div class="toggle-row">
+          <span>Show Overlay Zones</span>
+          <div class="toggle on" data-toggle="showOverlay"></div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">System Status</div>
+        <div class="status-row"><span class="lbl">Session</span><span>X11</span></div>
+        <div class="status-row"><span class="lbl">EWMH Support</span><span class="status-pill"><span class="status-dot"></span> Full</span></div>
+        <div class="status-row"><span class="lbl">Workspace</span><span>Desktop 1</span></div>
+        <div class="status-row"><span class="lbl">Active Screen</span><span>DP-1</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ LAYOUTS VIEW ════════ -->
+<div class="view" id="view-layouts">
+  <div class="layouts-header">
+    <h2>Layouts</h2>
+    <button class="btn-new-layout" onclick="showToast('Layout editor would open here')">+ New Layout</button>
+  </div>
+  <div class="layouts-grid" id="layouts-grid"></div>
+</div>
+
+<!-- ════════ SETTINGS VIEW ════════ -->
+<div class="view" id="view-settings">
+  <div class="settings-main">
+    <div class="settings-group">
+      <div class="settings-group-title">Snap Behavior</div>
+      <div class="settings-row">
+        <div class="label-group">
+          <span>Enable Modifier Snap</span>
+          <span class="sub">Hold modifier while dragging a window to snap</span>
+        </div>
+        <div class="toggle on" data-toggle="snapEnabled"></div>
+      </div>
+      <div class="settings-row">
+        <div class="label-group">
+          <span>Snap Modifier Key</span>
+          <span class="sub">Key to hold during drag</span>
+        </div>
+        <select class="modifier-select" id="modifier-select">
+          <option value="Shift">Shift</option>
+          <option value="Ctrl">Ctrl</option>
+          <option value="Alt">Alt</option>
+          <option value="Super">Super (Meta)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">Defaults</div>
+      <div class="settings-row">
+        <div class="label-group"><span>Default Gap</span><span class="sub">Space between zones</span></div>
+        <span style="color: var(--accent); font-weight:500;">10 px</span>
+      </div>
+      <div class="settings-row">
+        <div class="label-group"><span>Default Margin</span><span class="sub">Space around screen edge</span></div>
+        <span style="color: var(--accent); font-weight:500;">16 px</span>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">General</div>
+      <div class="settings-row">
+        <div class="label-group"><span>Start at Login</span><span class="sub">Launch Grid Screen automatically</span></div>
+        <div class="toggle" data-toggle="autostart"></div>
+      </div>
+      <div class="settings-row">
+        <div class="label-group"><span>Minimize to Tray</span><span class="sub">Keep running when window is closed</span></div>
+        <div class="toggle on" data-toggle="tray"></div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">System Status</div>
+      <div class="settings-row"><span>Session Type</span><span>X11</span></div>
+      <div class="settings-row"><span>EWMH / _NET Support</span><span class="status-pill"><span class="status-dot"></span> Full</span></div>
+      <div class="settings-row"><span>Window Manager</span><span>Mutter (GNOME)</span></div>
+      <div class="settings-row"><span>XRandR</span><span class="status-pill"><span class="status-dot"></span> Available</span></div>
+      <div class="settings-row"><span>Current Workspace</span><span>Desktop 1</span></div>
+      <div class="settings-row"><span>Connected Screens</span><span>2 (DP-1, HDMI-2)</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+  <span id="toast-msg">Done!</span>
+</div>
+
+<script>
+// ════════ STATE ════════
+const ICON_COLORS = {
+  'Firefox': '#ff7139', 'Terminal': '#2d2d2d', 'VS Code': '#0078d4',
+  'Slack': '#4a154b', 'Spotify': '#1db954', 'Files': '#5c8dbc', 'GIMP': '#5c4740',
+  'Chromium': '#4285f4', 'Thunderbird': '#0a84ff', 'Discord': '#5865f2',
+};
+const SHORT = { 'Firefox':'Fx','Terminal':'Te','VS Code':'VS','Slack':'Sl','Spotify':'Sp','Files':'Na','GIMP':'Gi','Chromium':'Cr','Thunderbird':'Tb','Discord':'Di' };
+
+const state = {
+  activeTab: 'arrange',
+  selectedScreen: 'DP-1',
+  selectedLayout: '2col',
+  assignments: {},   // zoneIndex -> windowId
+  snapEnabled: true,
+  showOverlay: true,
+  autostart: false,
+  tray: true,
+  gap: 10,
+  margin: 16,
+  ratio: 50,
+  modifier: 'Shift',
+  windows: [
+    { id: 'w1', app: 'Firefox', title: 'MDN Web Docs', icon: 'Fx', color: '#ff7139' },
+    { id: 'w2', app: 'Terminal', title: '~/code/grid-screen', icon: 'Te', color: '#2d2d2d' },
+    { id: 'w3', app: 'VS Code', title: 'layout.rs — grid-screen', icon: 'VS', color: '#0078d4' },
+    { id: 'w4', app: 'Slack', title: '#engineering', icon: 'Sl', color: '#4a154b' },
+    { id: 'w5', app: 'Spotify', title: 'Lo-fi Beats — Chillhop', icon: 'Sp', color: '#1db954' },
+    { id: 'w6', app: 'Files', title: 'Downloads', icon: 'Na', color: '#5c8dbc' },
+    { id: 'w7', app: 'GIMP', title: 'screenshot.png (100%)', icon: 'Gi', color: '#5c4740' },
+  ],
+  screens: [
+    { id: 'DP-1', label: 'DP-1 (Primary)', res: '2560 x 1440' },
+    { id: 'HDMI-2', label: 'HDMI-2', res: '1920 x 1080' },
+  ],
+  layouts: [
+    { id: '2col', name: 'Two Columns', cols: '1fr 1fr', zones: 2,
+      icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/>' },
+    { id: '3col', name: 'Three Columns', cols: '1fr 1fr 1fr', zones: 3,
+      icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>' },
+    { id: 'focus', name: 'Focus + Stack', cols: '2fr 1fr', rows: '1fr 1fr', zones: 3, spanFirst: true,
+      icon: '<rect x="3" y="3" width="12" height="18" rx="2"/><rect x="17" y="3" width="4" height="8" rx="1"/><rect x="17" y="13" width="4" height="8" rx="1"/>' },
+    { id: 'main-side', name: 'Main + Sidebar', cols: '3fr 1fr', zones: 2,
+      icon: '<rect x="3" y="3" width="13" height="18" rx="2"/><rect x="18" y="3" width="3" height="18" rx="1"/>' },
+    { id: '3wide', name: '3 Wide Center', cols: '1fr 2fr 1fr', zones: 3,
+      icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>' },
+  ],
+  savedLayouts: [
+    { id: 's1', name: 'Work Setup', base: '2col', zones: 2, created: 'Jul 10' },
+    { id: 's2', name: 'Code Sprint', base: 'focus', zones: 3, created: 'Jul 8' },
+    { id: 's3', name: 'Presentation', base: 'main-side', zones: 2, created: 'Jul 5' },
+  ],
+};
+
+// ════════ HELPERS ════════
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return document.querySelectorAll(sel); }
+function getLayout() { return state.layouts.find(l => l.id === state.selectedLayout); }
+function getWindow(id) { return state.windows.find(w => w.id === id); }
+function assignedCount() { return Object.keys(state.assignments).length; }
+function assignedWindowIds() { return new Set(Object.values(state.assignments)); }
+
+// ════════ RENDER ════════
+function renderAllWindows() {
+  renderWindowList();
+  renderZones();
+  updateActionInfo();
+}
+
+function renderWindowList(filter = '') {
+  const list = $('#window-list');
+  const fl = filter.toLowerCase();
+  list.innerHTML = '';
+  let visible = 0;
+  state.windows.forEach(w => {
+    if (fl && !w.app.toLowerCase().includes(fl) && !w.title.toLowerCase().includes(fl)) return;
+    visible++;
+    const isAssigned = assignedWindowIds().has(w.id);
+    const zoneKey = Object.keys(state.assignments).find(k => state.assignments[k] === w.id);
+    const li = document.createElement('li');
+    li.className = 'window-card' + (isAssigned ? ' assigned' : '');
+    li.draggable = !isAssigned;
+    li.dataset.windowId = w.id;
+    li.innerHTML = `
+      <div class="app-icon" style="background:${w.color}">${w.icon}</div>
+      <div class="window-info">
+        <div class="window-app-name">${w.app}</div>
+        <div class="window-title">${w.title}</div>
+      </div>
+      ${isAssigned ? `<span class="assign-badge">Zone ${parseInt(zoneKey)+1}</span>` : ''}
+    `;
+    if (!isAssigned) {
+      li.addEventListener('dragstart', e => {
+        li.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', w.id);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      li.addEventListener('dragend', () => li.classList.remove('dragging'));
+    }
+    list.appendChild(li);
+  });
+  if (visible === 0) {
+    list.innerHTML = '<div class="empty-list">No windows found</div>';
+  }
+}
+
+function renderZones() {
+  const mock = $('#screen-mock');
+  const layout = getLayout();
+  mock.innerHTML = `<div class="screen-label-bar" id="screen-label">${state.selectedScreen}  ${state.screens.find(s=>s.id===state.selectedScreen).res}</div>`;
+
+  // Apply grid
+  mock.style.gridTemplateColumns = layout.cols;
+  if (layout.rows) mock.style.gridTemplateRows = layout.rows;
+  else mock.style.gridTemplateRows = '1fr';
+  mock.style.gap = state.gap + 'px';
+  mock.style.padding = state.margin + 'px';
+
+  // Adjust ratio if 2-zone layout
+  let cols = layout.cols;
+  if (layout.zones === 2 && state.ratio !== 50) {
+    const r = state.ratio;
+    const rest = 100 - r;
+    cols = `${r}fr ${rest}fr`;
+    mock.style.gridTemplateColumns = cols;
+  }
+
+  for (let i = 0; i < layout.zones; i++) {
+    const zone = document.createElement('div');
+    zone.className = 'zone';
+    zone.dataset.zoneIndex = i;
+    if (layout.spanFirst && i === 0) zone.style.gridRow = 'span 2';
+
+    const assignedWin = state.assignments[i];
+    if (assignedWin) {
+      const w = getWindow(assignedWin);
+      zone.classList.add('has-window');
+      zone.innerHTML = `
+        <button class="zone-remove" data-zone="${i}">x</button>
+        <span class="zone-label">Zone ${i+1}</span>
+        <div class="zone-window"><div class="app-icon" style="width:20px;height:20px;font-size:10px;background:${w.color}">${w.icon}</div>${w.app}</div>
+      `;
+      zone.querySelector('.zone-remove').addEventListener('click', e => {
+        e.stopPropagation();
+        delete state.assignments[i];
+        renderAllWindows();
+      });
+    } else {
+      zone.innerHTML = `
+        <span class="zone-label">Zone ${i+1}</span>
+        <span style="font-size:11px;color:var(--text-mute);margin-top:6px;">Drop window here</span>
+      `;
+    }
+
+    // Drop zone events
+    zone.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      zone.classList.add('drag-over');
+    });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      const winId = e.dataTransfer.getData('text/plain');
+      if (!winId) return;
+      // Remove any existing assignment for this window
+      for (const [k, v] of Object.entries(state.assignments)) {
+        if (v === winId) delete state.assignments[k];
+      }
+      state.assignments[i] = winId;
+      renderAllWindows();
+    });
+
+    mock.appendChild(zone);
+  }
+}
+
+function renderLayoutQuick() {
+  const container = $('#layout-quick');
+  container.innerHTML = '';
+  state.layouts.forEach(l => {
+    const btn = document.createElement('div');
+    btn.className = 'layout-btn' + (l.id === state.selectedLayout ? ' active' : '');
+    btn.title = l.name;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${l.icon}</svg>`;
+    btn.addEventListener('click', () => switchLayout(l.id));
+    container.appendChild(btn);
+  });
+}
+
+function renderLayoutDropdown() {
+  const dd = $('#layout-dropdown');
+  dd.innerHTML = '';
+  state.layouts.forEach(l => {
+    const item = document.createElement('div');
+    item.className = 'dropdown-item' + (l.id === state.selectedLayout ? ' selected' : '');
+    item.textContent = l.name;
+    item.addEventListener('click', e => {
+      e.stopPropagation();
+      switchLayout(l.id);
+      dd.classList.remove('open');
+    });
+    dd.appendChild(item);
+  });
+}
+
+function renderScreenDropdown() {
+  const dd = $('#screen-dropdown');
+  dd.innerHTML = '';
+  state.screens.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'dropdown-item' + (s.id === state.selectedScreen ? ' selected' : '');
+    item.textContent = `${s.label} — ${s.res}`;
+    item.addEventListener('click', e => {
+      e.stopPropagation();
+      state.selectedScreen = s.id;
+      $('#screen-value').textContent = s.label;
+      renderZones();
+      dd.classList.remove('open');
+    });
+    dd.appendChild(item);
+  });
+}
+
+function renderLayoutsView() {
+  const grid = $('#layouts-grid');
+  grid.innerHTML = '';
+  // Built-in presets
+  state.layouts.forEach(l => {
+    const card = document.createElement('div');
+    card.className = 'layout-card' + (l.id === state.selectedLayout ? ' active' : '');
+    let previewCols = l.cols;
+    const previewHTML = [];
+    for (let i = 0; i < l.zones; i++) {
+      previewHTML.push(`<div ${l.spanFirst && i===0 ? 'style="grid-row:span 2"' : ''}></div>`);
+    }
+    card.innerHTML = `
+      <div class="layout-card-preview" style="grid-template-columns:${previewCols};${l.rows?'grid-template-rows:'+l.rows:''}">
+        ${previewHTML.join('')}
+      </div>
+      <div class="layout-card-name">${l.name}</div>
+      <div class="layout-card-meta">Built-in preset - ${l.zones} zone${l.zones>1?'s':''}</div>
+      <div class="layout-card-actions">
+        <span class="layout-action-btn">Use</span>
+        <span class="layout-action-btn">Duplicate</span>
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      switchLayout(l.id);
+      switchTab('arrange');
+    });
+    grid.appendChild(card);
+  });
+  // Saved layouts
+  state.savedLayouts.forEach(l => {
+    const baseLayout = state.layouts.find(bl => bl.id === l.base);
+    const card = document.createElement('div');
+    card.className = 'layout-card';
+    const previewHTML = [];
+    for (let i = 0; i < l.zones; i++) {
+      previewHTML.push(`<div ${baseLayout && baseLayout.spanFirst && i===0 ? 'style="grid-row:span 2"' : ''}></div>`);
+    }
+    card.innerHTML = `
+      <div class="layout-card-preview" style="grid-template-columns:${baseLayout?baseLayout.cols:'1fr 1fr'};${baseLayout&&baseLayout.rows?'grid-template-rows:'+baseLayout.rows:''}">
+        ${previewHTML.join('')}
+      </div>
+      <div class="layout-card-name">${l.name}</div>
+      <div class="layout-card-meta">Custom - Created ${l.created}</div>
+      <div class="layout-card-actions">
+        <span class="layout-action-btn">Use</span>
+        <span class="layout-action-btn">Edit</span>
+        <span class="layout-action-btn">Delete</span>
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      showToast(`"${l.name}" loaded`);
+      switchTab('arrange');
+    });
+    grid.appendChild(card);
+  });
+}
+
+// ════════ ACTIONS ════════
+function switchLayout(id) {
+  state.selectedLayout = id;
+  // Clear assignments that are out of range
+  const layout = state.layouts.find(l => l.id === id);
+  Object.keys(state.assignments).forEach(k => {
+    if (parseInt(k) >= layout.zones) delete state.assignments[k];
+  });
+  const layoutObj = getLayout();
+  $('#layout-value').textContent = layoutObj.name;
+  $('#detail-layout-name').textContent = 'Layout: ' + layoutObj.name;
+  renderLayoutQuick();
+  renderLayoutDropdown();
+  renderAllWindows();
+}
+
+function updateActionInfo() {
+  const count = assignedCount();
+  const info = $('#action-info');
+  const btn = $('#btn-arrange');
+  if (count === 0) {
+    info.innerHTML = 'No windows assigned';
+    btn.disabled = true;
+    btn.textContent = 'Arrange Windows';
+  } else {
+    info.innerHTML = `<strong>${count}</strong> of ${state.windows.length} windows assigned`;
+    btn.disabled = false;
+    btn.textContent = `Arrange ${count} Window${count > 1 ? 's' : ''}`;
+  }
+}
+
+function clearAll() {
+  if (assignedCount() === 0) return;
+  state.assignments = {};
+  renderAllWindows();
+  showToast('All assignments cleared');
+}
+
+function doArrange() {
+  const count = assignedCount();
+  if (count === 0) return;
+  // Simulate arrangement
+  const btn = $('#btn-arrange');
+  btn.textContent = 'Arranging...';
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.innerHTML = 'Done!';
+    showToast(`Successfully arranged ${count} window${count > 1 ? 's' : ''} on ${state.selectedScreen}`);
+    setTimeout(() => {
+      state.assignments = {};
+      renderAllWindows();
+    }, 800);
+  }, 1000);
+}
+
+function showToast(msg, isError = false) {
+  const toast = $('#toast');
+  $('#toast-msg').textContent = msg;
+  toast.classList.toggle('error', isError);
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function switchTab(tab) {
+  state.activeTab = tab;
+  $$('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + tab));
+  if (tab === 'layouts') renderLayoutsView();
+}
+
+// ════════ INIT & EVENTS ════════
+function init() {
+  // Tabs
+  $$('.nav-tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+  // Search
+  $('#search').addEventListener('input', e => renderWindowList(e.target.value));
+
+  // Arrange button
+  $('#btn-arrange').addEventListener('click', doArrange);
+
+  // Dropdowns
+  $('#screen-selector').addEventListener('click', e => {
+    if (e.target.closest('.dropdown-item')) return;
+    $('#screen-dropdown').classList.toggle('open');
+    $('#layout-dropdown').classList.remove('open');
+  });
+  $('#layout-selector').addEventListener('click', e => {
+    if (e.target.closest('.dropdown-item')) return;
+    $('#layout-dropdown').classList.toggle('open');
+    $('#screen-dropdown').classList.remove('open');
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#screen-selector')) $('#screen-dropdown').classList.remove('open');
+    if (!e.target.closest('#layout-selector')) $('#layout-dropdown').classList.remove('open');
+  });
+
+  // Toggles
+  $$('[data-toggle]').forEach(t => {
+    t.addEventListener('click', () => {
+      t.classList.toggle('on');
+      const key = t.dataset.toggle;
+      state[key] = t.classList.contains('on');
+    });
+  });
+
+  // Sliders
+  $('#ratio').addEventListener('input', e => {
+    state.ratio = parseInt(e.target.value);
+    $('#ratio-val').textContent = state.ratio + '%';
+    renderZones();
+  });
+  $('#gap').addEventListener('input', e => {
+    state.gap = parseInt(e.target.value);
+    $('#gap-val').textContent = state.gap + ' px';
+    renderZones();
+  });
+  $('#margin').addEventListener('input', e => {
+    state.margin = parseInt(e.target.value);
+    $('#margin-val').textContent = state.margin + ' px';
+    renderZones();
+  });
+
+  // Modifier select
+  $('#modifier-select').addEventListener('change', e => {
+    state.modifier = e.target.value;
+    showToast(`Snap modifier set to ${e.target.value}`);
+  });
+
+  // Initial render
+  renderScreenDropdown();
+  renderLayoutDropdown();
+  renderLayoutQuick();
+  renderAllWindows();
+}
+
+init();
+</script>
+</body>
+</html>

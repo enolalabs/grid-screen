@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grid Screen — Daylight (Warm Light)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --bg: #faf8f5;
+    --surface: #ffffff;
+    --surface-2: #f5f2ee;
+    --surface-3: #ebe6e0;
+    --border: #e0dcd5;
+    --text: #2e2b28;
+    --text-dim: #7a7670;
+    --text-mute: #b0aaa2;
+    --accent: #e8703c;
+    --accent-soft: rgba(232, 112, 60, 0.1);
+    --accent-2: #f4a261;
+    --success: #5ba374;
+    --danger: #e0584a;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow-sm: 0 1px 3px rgba(46, 43, 40, 0.06);
+    --shadow-md: 0 4px 16px rgba(46, 43, 40, 0.08);
+    --shadow-lg: 0 12px 40px rgba(46, 43, 40, 0.12);
+    --transition: 0.2s ease;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Title Bar ── */
+  .titlebar {
+    display: flex; align-items: center; height: 48px;
+    padding: 0 20px; background: var(--surface);
+    border-bottom: 1px solid var(--border); gap: 16px; flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; letter-spacing: -0.02em; }
+  .brand-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand-icon svg { width: 16px; height: 16px; color: #fff; }
+  .titlebar-spacer { flex: 1; }
+  .titlebar-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--success);
+    padding: 4px 14px; background: rgba(91, 163, 116, 0.1); border-radius: 20px; cursor: pointer;
+    transition: var(--transition);
+  }
+  .titlebar-status.off { color: var(--text-mute); background: var(--surface-2); }
+  .titlebar-status.off .status-dot { background: var(--text-mute); }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+
+  /* ── Nav Pills ── */
+  .nav-bar {
+    display: flex; align-items: center; padding: 12px 20px;
+    background: var(--surface); border-bottom: 1px solid var(--border); gap: 4px; flex-shrink: 0;
+  }
+  .nav-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 18px; font-size: 14px; font-weight: 600;
+    color: var(--text-dim); cursor: pointer; border-radius: var(--radius-sm);
+    transition: var(--transition); border: none; background: transparent; font-family: inherit;
+  }
+  .nav-pill:hover { background: var(--surface-2); color: var(--text); }
+  .nav-pill.active { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
+  .nav-pill svg { width: 18px; height: 18px; }
+  .nav-spacer { flex: 1; }
+  .nav-action {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: var(--transition); border: none;
+  }
+  .nav-action:hover { background: var(--surface-3); }
+  .nav-action svg { width: 18px; height: 18px; color: var(--text-dim); }
+
+  /* ── Views ── */
+  .view { display: none; flex: 1; overflow: hidden; }
+  .view.active { display: flex; flex-direction: column; }
+
+  /* ── Main Layout ── */
+  .arrange-main { display: grid; grid-template-columns: 300px 1fr 320px; flex: 1; overflow: hidden; }
+
+  /* ── Window Catalog ── */
+  .catalog-panel { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .panel-header { padding: 20px 16px 12px; }
+  .panel-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .panel-subtitle { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; }
+  .search-box {
+    width: 100%; padding: 10px 14px; background: var(--surface-2);
+    border: 1px solid transparent; border-radius: var(--radius-sm);
+    color: var(--text); font-size: 13px; font-family: inherit;
+    font-weight: 500; outline: none; transition: var(--transition);
+  }
+  .search-box:focus { border-color: var(--accent); background: var(--surface); }
+  .search-box::placeholder { color: var(--text-mute); }
+
+  .window-list { flex: 1; overflow-y: auto; padding: 4px 12px 12px; list-style: none; }
+  .window-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: var(--radius-sm);
+    cursor: grab; transition: var(--transition); background: var(--surface);
+    border: 1px solid var(--border); margin-bottom: 8px; box-shadow: var(--shadow-sm);
+    position: relative;
+  }
+  .window-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); border-color: var(--accent-2); }
+  .window-card.assigned { opacity: 0.5; border-style: dashed; }
+  .window-card.dragging { opacity: 0.3; border-color: var(--accent) !important; }
+  .window-card.hidden { display: none; }
+  .window-card.assigned .assign-badge {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 6px;
+    background: var(--accent-soft); color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.04em; pointer-events: none;
+  }
+  .app-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; flex-shrink: 0; color: #fff;
+  }
+  .window-info { flex: 1; min-width: 0; }
+  .window-app-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .window-title { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .empty-list { padding: 24px 16px; text-align: center; color: var(--text-mute); font-size: 14px; }
+
+  /* ── Canvas Center ── */
+  .canvas-area { display: flex; flex-direction: column; background: var(--bg); overflow: hidden; padding: 20px; gap: 16px; }
+  .canvas-toolbar {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); padding: 12px 16px; border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .selector {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; background: var(--surface-2);
+    border: 1px solid transparent; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: var(--transition); position: relative;
+  }
+  .selector:hover { border-color: var(--accent); }
+  .selector-label { color: var(--text-dim); font-size: 12px; font-weight: 500; }
+  .selector-value { color: var(--text); font-size: 14px; }
+  .selector-icon { width: 18px; height: 18px; color: var(--accent); }
+  .dropdown {
+    position: absolute; top: calc(100% + 6px); left: 0;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 4px; min-width: 100%;
+    z-index: 100; display: none; box-shadow: var(--shadow-lg);
+  }
+  .dropdown.open { display: block; }
+  .dropdown-item { padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; transition: var(--transition); white-space: nowrap; }
+  .dropdown-item:hover { background: var(--surface-2); }
+  .dropdown-item.selected { color: var(--accent); }
+
+  .layout-gallery { display: flex; gap: 8px; margin-left: auto; }
+  .layout-btn {
+    width: 44px; height: 44px; border-radius: var(--radius-sm);
+    background: var(--surface-2); border: 2px solid transparent;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: var(--transition);
+  }
+  .layout-btn:hover { background: var(--surface-3); }
+  .layout-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+  .layout-btn svg { width: 22px; height: 22px; color: var(--text-dim); }
+  .layout-btn.active svg { color: var(--accent); }
+
+  /* ── Screen Canvas ── */
+  .canvas-container { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .screen-mock {
+    width: 100%; max-width: 760px; aspect-ratio: 16/10;
+    background: linear-gradient(135deg, #f5f2ee, #ebe6e0);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    display: grid; position: relative; overflow: hidden; box-shadow: var(--shadow-md);
+  }
+  .screen-label { position: absolute; top: -28px; left: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--text-dim); }
+  .screen-label .res { color: var(--text-mute); font-weight: 500; }
+
+  .zone {
+    border: 2px dashed var(--border); border-radius: var(--radius-sm);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: var(--transition); position: relative; min-height: 80px;
+  }
+  .zone:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .zone.drag-over { border-color: var(--accent); background: var(--accent-soft); transform: scale(1.02); }
+  .zone.has-window {
+    border-style: solid; border-color: var(--accent);
+    background: linear-gradient(135deg, rgba(232,112,60,0.05), rgba(244,162,97,0.08));
+  }
+  .zone-number {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--surface-3); display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--text-dim); margin-bottom: 8px;
+  }
+  .zone.has-window .zone-number { background: var(--accent); color: #fff; }
+  .zone-label { font-size: 12px; font-weight: 600; color: var(--text-mute); }
+  .zone.has-window .zone-label { color: var(--accent); }
+  .zone-window {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 10px; padding: 8px 14px; background: var(--surface);
+    border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-shadow: var(--shadow-sm);
+  }
+  .mini-icon {
+    width: 22px; height: 22px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff;
+  }
+  .zone-remove {
+    position: absolute; top: 8px; right: 8px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--border); cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--text-dim); transition: var(--transition);
+  }
+  .zone.has-window .zone-remove { display: flex; }
+  .zone-remove:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .zone-empty-text { font-size: 11px; color: var(--text-mute); margin-top: 4px; }
+
+  /* ── Action Bar ── */
+  .action-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .action-info { font-size: 14px; color: var(--text-dim); font-weight: 500; }
+  .action-info strong { color: var(--accent); font-weight: 800; font-size: 16px; }
+  .btn {
+    padding: 12px 32px; border: none; border-radius: var(--radius-sm);
+    font-size: 15px; font-weight: 700; cursor: pointer; transition: var(--transition); font-family: inherit;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff;
+    box-shadow: 0 4px 16px rgba(232,112,60,0.3);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(232,112,60,0.4); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-secondary { background: var(--surface-2); color: var(--text-dim); margin-right: 8px; }
+  .btn-secondary:hover { background: var(--surface-3); }
+
+  /* ── Detail Panel ── */
+  .detail-panel { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+  .detail-section { padding: 20px; border-bottom: 1px solid var(--border); }
+  .detail-section-title { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 16px; }
+  .slider-group { margin-bottom: 18px; }
+  .slider-label { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .slider-label span:last-child { color: var(--accent); font-weight: 800; font-size: 14px; background: var(--accent-soft); padding: 2px 10px; border-radius: 6px; }
+  .slider { width: 100%; height: 6px; -webkit-appearance: none; background: var(--surface-3); border-radius: 3px; outline: none; }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); cursor: pointer; border: 3px solid var(--surface); box-shadow: var(--shadow-sm);
+  }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; font-size: 14px; font-weight: 500; }
+  .toggle-row .label-group { display: flex; flex-direction: column; gap: 2px; }
+  .toggle-row .sub-label { font-size: 12px; color: var(--text-dim); font-weight: 400; }
+  .toggle {
+    width: 44px; height: 26px; background: var(--surface-3); border-radius: 13px;
+    position: relative; cursor: pointer; transition: var(--transition); flex-shrink: 0;
+  }
+  .toggle::after {
+    content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; top: 3px; left: 3px; transition: var(--transition); box-shadow: var(--shadow-sm);
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle.on::after { left: 21px; }
+
+  .status-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; font-size: 13px; }
+  .status-item .lbl { color: var(--text-dim); font-weight: 500; }
+  .status-item .value { font-weight: 600; }
+  .badge-ok { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; background: rgba(91,163,116,0.12); color: var(--success); }
+  .badge-ok .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+
+  .preset-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .preset-chip {
+    padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    background: var(--surface-2); border: 1px solid var(--border); cursor: pointer; transition: var(--transition);
+  }
+  .preset-chip:hover { border-color: var(--accent); }
+  .preset-chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+  /* ── Layouts View ── */
+  .layouts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; padding: 24px; overflow-y: auto; }
+  .layout-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; cursor: pointer; transition: var(--transition); }
+  .layout-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .layout-card.active { border-color: var(--accent); background: var(--accent-soft); }
+  .layout-card-preview { aspect-ratio: 16/10; background: var(--surface-2); border-radius: var(--radius-sm); display: grid; gap: 4px; padding: 6px; margin-bottom: 14px; }
+  .layout-card-preview > div { background: var(--surface-3); border-radius: 3px; }
+  .layout-card-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .layout-card-meta { font-size: 12px; color: var(--text-dim); }
+  .layout-card-actions { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+  .layout-action-btn { padding: 5px 12px; font-size: 12px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; transition: var(--transition); font-weight: 600; }
+  .layout-action-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .btn-new-layout { padding: 10px 20px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; transition: var(--transition); box-shadow: 0 2px 8px rgba(232,112,60,0.3); }
+  .btn-new-layout:hover { transform: translateY(-1px); }
+  .layouts-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .layouts-header h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+
+  /* ── Settings View ── */
+  .settings-main { overflow-y: auto; padding: 24px; max-width: 640px; width: 100%; }
+  .settings-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; box-shadow: var(--shadow-sm); }
+  .settings-group-title { padding: 14px 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 500; }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row .label-group { display: flex; flex-direction: column; gap: 2px; }
+  .settings-row .sub { font-size: 12px; color: var(--text-dim); font-weight: 400; }
+  .modifier-select { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: var(--radius-sm); font-family: inherit; font-size: 14px; font-weight: 600; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(150%);
+    background: var(--surface); border: none; color: var(--text);
+    padding: 14px 28px; border-radius: var(--radius); font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px; z-index: 200;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;
+    box-shadow: var(--shadow-lg);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast .toast-icon { color: var(--success); width: 20px; height: 20px; }
+  .toast.error .toast-icon { color: var(--danger); }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }
+</style>
+</head>
+<body>
+
+<!-- Title Bar -->
+<div class="titlebar">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    </div>
+    Grid Screen
+  </div>
+  <div class="titlebar-spacer"></div>
+  <div class="titlebar-status" id="snap-status">
+    <span class="status-dot"></span>
+    <span id="snap-status-text">Snap Active</span>
+  </div>
+</div>
+
+<!-- Nav Pills -->
+<div class="nav-bar">
+  <button class="nav-pill active" data-tab="arrange">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Arrange
+  </button>
+  <button class="nav-pill" data-tab="layouts">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+    Layouts
+  </button>
+  <button class="nav-pill" data-tab="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Settings
+  </button>
+  <div class="nav-spacer"></div>
+  <button class="nav-action" title="Help">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  </button>
+</div>
+
+<!-- ═══ ARRANGE VIEW ═══ -->
+<div class="view active" id="view-arrange">
+  <div class="arrange-main">
+    <div class="catalog-panel">
+      <div class="panel-header">
+        <div class="panel-title">Windows</div>
+        <div class="panel-subtitle" id="window-count">7 windows on Desktop 1</div>
+        <input type="text" class="search-box" id="search" placeholder="Search...">
+      </div>
+      <ul class="window-list" id="window-list"></ul>
+    </div>
+
+    <div class="canvas-area">
+      <div class="canvas-toolbar">
+        <div class="selector" id="screen-selector">
+          <svg class="selector-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <div><div class="selector-label">Screen</div><div class="selector-value" id="screen-value">DP-1 (Primary)</div></div>
+          <div class="dropdown" id="screen-dropdown"></div>
+        </div>
+        <div class="selector" id="layout-selector">
+          <svg class="selector-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+          <div><div class="selector-label">Layout</div><div class="selector-value" id="layout-value">Two Columns</div></div>
+          <div class="dropdown" id="layout-dropdown"></div>
+        </div>
+        <div class="layout-gallery" id="layout-quick"></div>
+      </div>
+
+      <div class="canvas-container">
+        <div class="screen-mock" id="screen-mock"></div>
+      </div>
+
+      <div class="action-bar">
+        <div class="action-info" id="action-info">No windows assigned yet</div>
+        <div>
+          <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+          <button class="btn btn-primary" id="btn-arrange" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><polyline points="6 9 12 15 18 9"/></svg>
+            <span id="btn-arrange-text">Arrange Windows</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-panel">
+      <div class="detail-section">
+        <div class="detail-section-title" id="detail-layout-name">Quick Presets</div>
+        <div class="preset-chips" id="preset-chips"></div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">Layout Tuning</div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Divider Ratio</span><span id="ratio-val">50%</span></div>
+          <input type="range" class="slider" id="ratio" min="10" max="90" value="50">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Gap Between Zones</span><span id="gap-val">14 px</span></div>
+          <input type="range" class="slider" id="gap" min="0" max="40" value="14">
+        </div>
+        <div class="slider-group">
+          <div class="slider-label"><span>Outer Margin</span><span id="margin-val">20 px</span></div>
+          <input type="range" class="slider" id="margin" min="0" max="60" value="20">
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">Snap</div>
+        <div class="toggle-row">
+          <div class="label-group"><span>Enable Drag Snap</span><span class="sub-label">Hold modifier while dragging</span></div>
+          <div class="toggle on" data-toggle="snapEnabled"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="label-group"><span>Show Zone Overlay</span><span class="sub-label">Click-through highlight</span></div>
+          <div class="toggle on" data-toggle="showOverlay"></div>
+        </div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">System</div>
+        <div class="status-item"><span class="lbl">Session</span><span class="value">X11</span></div>
+        <div class="status-item"><span class="lbl">EWMH</span><span class="badge-ok"><span class="dot"></span> Full</span></div>
+        <div class="status-item"><span class="lbl">Workspace</span><span class="value">Desktop 1</span></div>
+        <div class="status-item"><span class="lbl">Screen</span><span class="value" id="screen-info">DP-1 2560x1440</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LAYOUTS VIEW ═══ -->
+<div class="view" id="view-layouts">
+  <div class="layouts-header">
+    <h2>Layouts</h2>
+    <button class="btn-new-layout" onclick="showToast('Layout editor would open here')">+ New Layout</button>
+  </div>
+  <div class="layouts-grid" id="layouts-grid"></div>
+</div>
+
+<!-- ═══ SETTINGS VIEW ═══ -->
+<div class="view" id="view-settings">
+  <div class="settings-main">
+    <div class="settings-group">
+      <div class="settings-group-title">Snap Behavior</div>
+      <div class="settings-row">
+        <div class="label-group"><span>Enable Modifier Snap</span><span class="sub">Hold modifier while dragging a window to snap</span></div>
+        <div class="toggle on" data-toggle="snapEnabled"></div>
+      </div>
+      <div class="settings-row">
+        <div class="label-group"><span>Snap Modifier Key</span><span class="sub">Key to hold during drag</span></div>
+        <select class="modifier-select" id="modifier-select">
+          <option value="Shift">Shift</option><option value="Ctrl">Ctrl</option><option value="Alt">Alt</option><option value="Super">Super (Meta)</option>
+        </select>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">Defaults</div>
+      <div class="settings-row"><div class="label-group"><span>Default Gap</span><span class="sub">Space between zones for new layouts</span></div><span style="color:var(--accent);font-weight:700;">14 px</span></div>
+      <div class="settings-row"><div class="label-group"><span>Default Margin</span><span class="sub">Space around screen edge</span></div><span style="color:var(--accent);font-weight:700;">20 px</span></div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">General</div>
+      <div class="settings-row"><div class="label-group"><span>Start at Login</span><span class="sub">Launch Grid Screen automatically</span></div><div class="toggle" data-toggle="autostart"></div></div>
+      <div class="settings-row"><div class="label-group"><span>Minimize to Tray</span><span class="sub">Keep running when window is closed</span></div><div class="toggle on" data-toggle="tray"></div></div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">System Status</div>
+      <div class="settings-row"><span>Session Type</span><span>X11</span></div>
+      <div class="settings-row"><span>EWMH / _NET Support</span><span class="badge-ok"><span class="dot"></span> Full</span></div>
+      <div class="settings-row"><span>Window Manager</span><span>Mutter (GNOME)</span></div>
+      <div class="settings-row"><span>XRandR</span><span class="badge-ok"><span class="dot"></span> Available</span></div>
+      <div class="settings-row"><span>Current Workspace</span><span>Desktop 1</span></div>
+      <div class="settings-row"><span>Connected Screens</span><span>2 (DP-1, HDMI-2)</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+  <span id="toast-msg">Done!</span>
+</div>
+
+<script>
+const state = {
+  activeTab: 'arrange',
+  selectedScreen: 'DP-1',
+  selectedLayout: '2col',
+  assignments: {},
+  snapEnabled: true,
+  showOverlay: true,
+  autostart: false,
+  tray: true,
+  gap: 14,
+  margin: 20,
+  ratio: 50,
+  windows: [
+    { id:'w1', app:'Firefox', title:'MDN Web Docs', icon:'Fx', color:'#ff7139' },
+    { id:'w2', app:'Terminal', title:'~/code/grid-screen', icon:'Te', color:'#2d2d2d' },
+    { id:'w3', app:'VS Code', title:'layout.rs — grid-screen', icon:'VS', color:'#0078d4' },
+    { id:'w4', app:'Slack', title:'#engineering', icon:'Sl', color:'#4a154b' },
+    { id:'w5', app:'Spotify', title:'Lo-fi Beats — Chillhop', icon:'Sp', color:'#1db954' },
+    { id:'w6', app:'Files', title:'Downloads', icon:'Na', color:'#5c8dbc' },
+    { id:'w7', app:'GIMP', title:'screenshot.png (100%)', icon:'Gi', color:'#5c4740' },
+  ],
+  screens: [
+    { id:'DP-1', label:'DP-1 (Primary)', res:'2560 x 1440' },
+    { id:'HDMI-2', label:'HDMI-2', res:'1920 x 1080' },
+  ],
+  layouts: [
+    { id:'2col', name:'2 Columns', cols:'1fr 1fr', zones:2, icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/>' },
+    { id:'3col', name:'3 Columns', cols:'1fr 1fr 1fr', zones:3, icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>' },
+    { id:'focus', name:'Focus + Stack', cols:'2fr 1fr', rows:'1fr 1fr', zones:3, spanFirst:true, icon:'<rect x="3" y="3" width="12" height="18" rx="2"/><rect x="17" y="3" width="4" height="8" rx="1"/><rect x="17" y="13" width="4" height="8" rx="1"/>' },
+    { id:'main-side', name:'Main + Sidebar', cols:'3fr 1fr', zones:2, icon:'<rect x="3" y="3" width="13" height="18" rx="2"/><rect x="18" y="3" width="3" height="18" rx="1"/>' },
+    { id:'3wide', name:'3 Wide Center', cols:'1fr 2fr 1fr', zones:3, icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>' },
+  ],
+  savedLayouts: [
+    { id:'s1', name:'Work Setup', base:'2col', zones:2, created:'Jul 10' },
+    { id:'s2', name:'Code Sprint', base:'focus', zones:3, created:'Jul 8' },
+    { id:'s3', name:'Presentation', base:'main-side', zones:2, created:'Jul 5' },
+  ],
+};
+
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const getLayout = () => state.layouts.find(l => l.id === state.selectedLayout);
+const getWindow = id => state.windows.find(w => w.id === id);
+const assignedCount = () => Object.keys(state.assignments).length;
+const assignedWindowIds = () => new Set(Object.values(state.assignments));
+
+function renderAllWindows() { renderWindowList(); renderZones(); updateActionInfo(); }
+
+function renderWindowList(filter = '') {
+  const list = $('#window-list'); const fl = filter.toLowerCase();
+  list.innerHTML = ''; let visible = 0;
+  state.windows.forEach(w => {
+    if (fl && !w.app.toLowerCase().includes(fl) && !w.title.toLowerCase().includes(fl)) return;
+    visible++;
+    const isAssigned = assignedWindowIds().has(w.id);
+    const zoneKey = Object.keys(state.assignments).find(k => state.assignments[k] === w.id);
+    const li = document.createElement('li');
+    li.className = 'window-card' + (isAssigned ? ' assigned' : '');
+    li.draggable = !isAssigned;
+    li.dataset.windowId = w.id;
+    li.innerHTML = `
+      <div class="app-icon" style="background:${w.color}">${w.icon}</div>
+      <div class="window-info"><div class="window-app-name">${w.app}</div><div class="window-title">${w.title}</div></div>
+      ${isAssigned ? `<span class="assign-badge">Zone ${parseInt(zoneKey)+1}</span>` : ''}`;
+    if (!isAssigned) {
+      li.addEventListener('dragstart', e => { li.classList.add('dragging'); e.dataTransfer.setData('text/plain', w.id); e.dataTransfer.effectAllowed = 'move'; });
+      li.addEventListener('dragend', () => li.classList.remove('dragging'));
+    }
+    list.appendChild(li);
+  });
+  $('#window-count').textContent = `${visible} window${visible !== 1 ? 's' : ''} on Desktop 1`;
+  if (visible === 0) list.innerHTML = '<div class="empty-list">No windows found</div>';
+}
+
+function renderZones() {
+  const mock = $('#screen-mock'); const layout = getLayout();
+  const scr = state.screens.find(s => s.id === state.selectedScreen);
+  mock.innerHTML = `<div class="screen-label">${state.selectedScreen} <span class="res">${scr.res}</span></div>`;
+  let cols = layout.cols;
+  if (layout.zones === 2 && state.ratio !== 50) { cols = `${state.ratio}fr ${100 - state.ratio}fr`; }
+  mock.style.gridTemplateColumns = cols;
+  mock.style.gridTemplateRows = layout.rows || '1fr';
+  mock.style.gap = state.gap + 'px';
+  mock.style.padding = state.margin + 'px';
+  $('#screen-info').textContent = `${state.selectedScreen} ${scr.res}`;
+
+  for (let i = 0; i < layout.zones; i++) {
+    const zone = document.createElement('div');
+    zone.className = 'zone'; zone.dataset.zoneIndex = i;
+    if (layout.spanFirst && i === 0) zone.style.gridRow = 'span 2';
+    const winId = state.assignments[i];
+    if (winId) {
+      const w = getWindow(winId);
+      zone.classList.add('has-window');
+      zone.innerHTML = `
+        <button class="zone-remove" data-zone="${i}">&#10005;</button>
+        <div class="zone-number">${i+1}</div>
+        <span class="zone-label">Zone ${i+1}</span>
+        <div class="zone-window"><div class="mini-icon" style="background:${w.color}">${w.icon}</div>${w.app}</div>`;
+      zone.querySelector('.zone-remove').addEventListener('click', e => { e.stopPropagation(); delete state.assignments[i]; renderAllWindows(); });
+    } else {
+      zone.innerHTML = `<div class="zone-number">${i+1}</div><span class="zone-label">Zone ${i+1}</span><span class="zone-empty-text">Drop a window here</span>`;
+    }
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('drag-over');
+      const winId = e.dataTransfer.getData('text/plain'); if (!winId) return;
+      for (const [k, v] of Object.entries(state.assignments)) { if (v === winId) delete state.assignments[k]; }
+      state.assignments[i] = winId; renderAllWindows();
+    });
+    mock.appendChild(zone);
+  }
+}
+
+function renderLayoutQuick() {
+  const c = $('#layout-quick'); c.innerHTML = '';
+  state.layouts.forEach(l => {
+    const b = document.createElement('div');
+    b.className = 'layout-btn' + (l.id === state.selectedLayout ? ' active' : '');
+    b.title = l.name; b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${l.icon}</svg>`;
+    b.addEventListener('click', () => switchLayout(l.id));
+    c.appendChild(b);
+  });
+}
+
+function renderPresetChips() {
+  const c = $('#preset-chips'); c.innerHTML = '';
+  state.layouts.forEach(l => {
+    const chip = document.createElement('div');
+    chip.className = 'preset-chip' + (l.id === state.selectedLayout ? ' active' : '');
+    chip.textContent = l.name;
+    chip.addEventListener('click', () => switchLayout(l.id));
+    c.appendChild(chip);
+  });
+}
+
+function renderDropdowns() {
+  const ldd = $('#layout-dropdown'); ldd.innerHTML = '';
+  state.layouts.forEach(l => {
+    const i = document.createElement('div');
+    i.className = 'dropdown-item' + (l.id === state.selectedLayout ? ' selected' : '');
+    i.textContent = l.name;
+    i.addEventListener('click', e => { e.stopPropagation(); switchLayout(l.id); ldd.classList.remove('open'); });
+    ldd.appendChild(i);
+  });
+  const sdd = $('#screen-dropdown'); sdd.innerHTML = '';
+  state.screens.forEach(s => {
+    const i = document.createElement('div');
+    i.className = 'dropdown-item' + (s.id === state.selectedScreen ? ' selected' : '');
+    i.textContent = `${s.label} — ${s.res}`;
+    i.addEventListener('click', e => { e.stopPropagation(); state.selectedScreen = s.id; $('#screen-value').textContent = s.label; renderZones(); sdd.classList.remove('open'); });
+    sdd.appendChild(i);
+  });
+}
+
+function renderLayoutsView() {
+  const grid = $('#layouts-grid'); grid.innerHTML = '';
+  [...state.layouts, ...state.savedLayouts.map(sl => ({...sl, _saved: true, name: sl.name, cols: state.layouts.find(l=>l.id===sl.base)?.cols || '1fr 1fr', rows: state.layouts.find(l=>l.id===sl.base)?.rows, spanFirst: state.layouts.find(l=>l.id===sl.base)?.spanFirst }))].forEach(l => {
+    const card = document.createElement('div');
+    card.className = 'layout-card' + (l.id === state.selectedLayout ? ' active' : '');
+    let previewHTML = '';
+    for (let i = 0; i < l.zones; i++) previewHTML += `<div ${l.spanFirst && i===0 ? 'style="grid-row:span 2"' : ''}></div>`;
+    card.innerHTML = `
+      <div class="layout-card-preview" style="grid-template-columns:${l.cols};${l.rows?'grid-template-rows:'+l.rows:''}">${previewHTML}</div>
+      <div class="layout-card-name">${l.name}</div>
+      <div class="layout-card-meta">${l._saved ? 'Custom - Created '+l.created : 'Built-in preset'} - ${l.zones} zone${l.zones>1?'s':''}</div>
+      <div class="layout-card-actions">
+        <span class="layout-action-btn">Use</span>
+        ${l._saved ? '<span class="layout-action-btn">Edit</span><span class="layout-action-btn">Delete</span>' : '<span class="layout-action-btn">Duplicate</span>'}
+      </div>`;
+    card.addEventListener('click', () => { if (!l._saved) switchLayout(l.id); else showToast(`"${l.name}" loaded`); switchTab('arrange'); });
+    grid.appendChild(card);
+  });
+}
+
+function switchLayout(id) {
+  state.selectedLayout = id;
+  Object.keys(state.assignments).forEach(k => { if (parseInt(k) >= getLayout().zones) delete state.assignments[k]; });
+  $('#layout-value').textContent = getLayout().name;
+  renderLayoutQuick(); renderPresetChips(); renderDropdowns(); renderAllWindows();
+}
+
+function updateActionInfo() {
+  const c = assignedCount();
+  const info = $('#action-info'); const btn = $('#btn-arrange'); const btnText = $('#btn-arrange-text');
+  if (c === 0) { info.innerHTML = 'No windows assigned yet'; btn.disabled = true; btnText.textContent = 'Arrange Windows'; }
+  else { info.innerHTML = `<strong>${c}</strong> ${c === 1 ? 'window' : 'windows'} ready to arrange`; btn.disabled = false; btnText.textContent = `Arrange ${c} ${c > 1 ? 'Windows' : 'Window'}`; }
+}
+
+function clearAll() { if (assignedCount() === 0) return; state.assignments = {}; renderAllWindows(); showToast('All assignments cleared'); }
+
+function doArrange() {
+  const c = assignedCount(); if (c === 0) return;
+  const btn = $('#btn-arrange'); const btnText = $('#btn-arrange-text');
+  btnText.textContent = 'Arranging...'; btn.disabled = true;
+  setTimeout(() => {
+    btnText.textContent = 'Done!'; showToast(`Successfully arranged ${c} ${c > 1 ? 'windows' : 'window'} on ${state.selectedScreen}`);
+    setTimeout(() => { state.assignments = {}; renderAllWindows(); }, 1000);
+  }, 1200);
+}
+
+function showToast(msg) {
+  const t = $('#toast'); $('#toast-msg').textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function switchTab(tab) {
+  state.activeTab = tab;
+  $$('.nav-pill').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + tab));
+  if (tab === 'layouts') renderLayoutsView();
+}
+
+function updateSnapStatus() {
+  const el = $('#snap-status'); const text = $('#snap-status-text');
+  if (state.snapEnabled) { el.classList.remove('off'); text.textContent = 'Snap Active'; }
+  else { el.classList.add('off'); text.textContent = 'Snap Disabled'; }
+}
+
+function init() {
+  $$('.nav-pill').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+  $('#search').addEventListener('input', e => renderWindowList(e.target.value));
+  $('#btn-arrange').addEventListener('click', doArrange);
+  $('#screen-selector').addEventListener('click', e => { if (e.target.closest('.dropdown-item')) return; $('#screen-dropdown').classList.toggle('open'); $('#layout-dropdown').classList.remove('open'); });
+  $('#layout-selector').addEventListener('click', e => { if (e.target.closest('.dropdown-item')) return; $('#layout-dropdown').classList.toggle('open'); $('#screen-dropdown').classList.remove('open'); });
+  document.addEventListener('click', e => { if (!e.target.closest('#screen-selector')) $('#screen-dropdown').classList.remove('open'); if (!e.target.closest('#layout-selector')) $('#layout-dropdown').classList.remove('open'); });
+  $$('[data-toggle]').forEach(t => t.addEventListener('click', () => { t.classList.toggle('on'); state[t.dataset.toggle] = t.classList.contains('on'); if (t.dataset.toggle === 'snapEnabled') updateSnapStatus(); }));
+  $('#snap-status').addEventListener('click', () => { state.snapEnabled = !state.snapEnabled; document.querySelectorAll('[data-toggle="snapEnabled"]').forEach(t => t.classList.toggle('on', state.snapEnabled)); updateSnapStatus(); });
+  $('#ratio').addEventListener('input', e => { state.ratio = parseInt(e.target.value); $('#ratio-val').textContent = state.ratio + '%'; renderZones(); });
+  $('#gap').addEventListener('input', e => { state.gap = parseInt(e.target.value); $('#gap-val').textContent = state.gap + ' px'; renderZones(); });
+  $('#margin').addEventListener('input', e => { state.margin = parseInt(e.target.value); $('#margin-val').textContent = state.margin + ' px'; renderZones(); });
+  $('#modifier-select').addEventListener('change', e => { state.modifier = e.target.value; showToast(`Snap modifier set to ${e.target.value}`); });
+  renderDropdowns(); renderLayoutQuick(); renderPresetChips(); renderAllWindows();
+}
+init();
+</script>
+</body>
+</html>
