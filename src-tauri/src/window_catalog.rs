@@ -1,16 +1,19 @@
 use shared_types::WindowDescriptor;
 use crate::platform_adapter::PlatformAdapter;
+#[cfg(test)]
 use std::collections::HashSet;
 
 pub fn is_eligible_window(w: &WindowDescriptor) -> bool {
     w.state.movable && w.state.resizable && !w.state.fullscreen && !w.app_name.is_empty()
 }
 
+#[cfg(test)]
 pub struct WindowCatalog<'a> {
     adapter: &'a dyn PlatformAdapter,
     known_ids: std::cell::RefCell<HashSet<String>>,
 }
 
+#[cfg(test)]
 impl<'a> WindowCatalog<'a> {
     pub fn new(adapter: &'a dyn PlatformAdapter) -> Self {
         WindowCatalog {

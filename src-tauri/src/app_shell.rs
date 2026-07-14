@@ -47,10 +47,21 @@ pub fn refresh_windows(state: State<AppState>) -> Vec<WindowDescriptor> {
 
 #[tauri::command]
 pub fn arrange_windows(state: State<AppState>, request: ArrangeRequest) -> ArrangeResult {
-    let (_, layouts, _) = state
+    let (_, layouts, warnings) = state
         .config
         .load()
-        .unwrap_or_else(|_| (Settings::default(), Vec::new(), Vec::new()));
+        .unwrap_or_else(|e| (Settings::default(), Vec::new(), vec![e]));
+    if !warnings.is_empty() {
+        return ArrangeResult {
+            success: false,
+            results: vec![PerWindowResult {
+                window_id: "".into(),
+                status: MoveStatus::Failed,
+                actual_rect: None,
+                error: Some(format!("Config load error: {}", warnings.join("; "))),
+            }],
+        };
+    }
     let screens = state.adapter.enumerate_screens();
 
     ArrangeOrchestrator::arrange(

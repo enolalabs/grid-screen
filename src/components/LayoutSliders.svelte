@@ -5,9 +5,7 @@
   let gap = $state(10);
   let margin = $state(16);
 
-  let ratioTimer: ReturnType<typeof setTimeout> | null = null;
-  let gapTimer: ReturnType<typeof setTimeout> | null = null;
-  let marginTimer: ReturnType<typeof setTimeout> | null = null;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   $effect(() => {
     if ($selectedLayout) {
@@ -22,12 +20,8 @@
   );
 
   function debouncedUpdate() {
-    if (ratioTimer) clearTimeout(ratioTimer);
-    if (gapTimer) clearTimeout(gapTimer);
-    if (marginTimer) clearTimeout(marginTimer);
-    ratioTimer = setTimeout(applyOverrides, 150);
-    gapTimer = setTimeout(applyOverrides, 150);
-    marginTimer = setTimeout(applyOverrides, 150);
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(applyOverrides, 150);
   }
 
   function applyOverrides() {

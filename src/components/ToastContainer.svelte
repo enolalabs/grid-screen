@@ -17,7 +17,7 @@
     transform: translateX(-50%); z-index: 200;
     background: var(--surface-2); color: var(--text);
     padding: 12px 24px; border-radius: var(--radius-sm);
-    font-size: 14px; font-weight: 500; pointer-events: none;
+    font-size: 14px; font-weight: 500;
     border: 1px solid var(--success);
     box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   }

@@ -22,6 +22,10 @@
     } else {
       lastCompletedStatus = null;
     }
+
+    return () => {
+      if (dismissTimeout) clearTimeout(dismissTimeout);
+    };
   });
 
   function dismiss() {

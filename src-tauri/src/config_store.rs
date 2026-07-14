@@ -40,7 +40,7 @@ impl ConfigStore {
         };
 
         let warnings = if settings.schema_version < SCHEMA_VERSION {
-            vec!["Config from older version — settings reset to defaults. Backup preserved.".into()]
+            vec!["Config from older schema version — some settings may not apply correctly.".into()]
         } else {
             Vec::new()
         };

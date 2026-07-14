@@ -24,7 +24,10 @@ pub struct MockPlatformAdapter {
     pub workspace: String,
     pub system_status: SystemStatus,
     pub move_log: std::sync::Mutex<Vec<(String, Rect)>>,
+    // Event infrastructure defined for future X11 adapter; used by PlatformAdapter trait contract.
+    #[allow(dead_code)]
     pub workspace_tx: tokio::sync::broadcast::Sender<WorkspaceChangedPayload>,
+    #[allow(dead_code)]
     pub screen_tx: tokio::sync::broadcast::Sender<ScreenChangedPayload>,
     pub frame_extents: Rect,
 }

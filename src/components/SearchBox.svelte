@@ -4,19 +4,13 @@
   }
 
   let { value = $bindable("") }: Props = $props();
-
-  function onInput(e: Event) {
-    const target = e.target as HTMLInputElement;
-    value = target.value;
-  }
 </script>
 
 <input
   type="text"
   class="search-box"
   placeholder="Search windows..."
-  value={value}
-  oninput={onInput}
+  bind:value
 />
 
 <style>
