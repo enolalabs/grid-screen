@@ -243,10 +243,6 @@ fn main() {
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())
@@ -275,6 +271,9 @@ Run: `cargo check -p grid-screen` expected: PASS
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tauri-apps/cli": "^2.0.0",
     "@tsconfig/svelte": "^5.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "prettier-plugin-svelte": "^3.0.0",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "typescript": "^5.7.0",
@@ -452,11 +451,26 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--border); }
 ```
 
-- [ ] **Step 15: Verify scaffold boots**
+- [ ] **Step 15: Create placeholder tray icon**
+
+Create a minimal 32x32 PNG for the tray icon (can be a solid-colored square):
+
+```bash
+mkdir -p src-tauri/icons
+# Use ImageMagick or similar to create a 32x32 blue square
+convert -size 32x32 xc:'#5b8def' src-tauri/icons/icon.png
+convert -size 32x32 xc:'#5b8def' src-tauri/icons/32x32.png
+convert -size 128x128 xc:'#5b8def' src-tauri/icons/128x128.png
+convert -size 256x256 xc:'#5b8def' src-tauri/icons/icon.ico
+```
+
+If ImageMagick is not available, copy any 32x32 PNG to `src-tauri/icons/icon.png`.
+
+- [ ] **Step 16: Verify scaffold boots**
 
 Run: `npm run dev` — expected: dev server starts on port 5173. Verify http://localhost:5173 shows "Grid Screen" text in dark background.
 
-- [ ] **Step 16: Commit**
+- [ ] **Step 17: Commit**
 
 ```bash
 git add -A
@@ -623,6 +637,18 @@ pub struct WorkspaceChangedPayload {
 #[ts(export)]
 pub struct ScreenChangedPayload {
     pub screens: Vec<ScreenInfo>,
+}
+
+impl Default for WindowState {
+    fn default() -> Self {
+        WindowState {
+            minimized: false,
+            maximized: false,
+            fullscreen: false,
+            movable: true,
+            resizable: true,
+        }
+    }
 }
 
 impl Default for Settings {
@@ -862,7 +888,7 @@ Run: `cargo test -p grid-screen -- config_store::tests` expected: FAIL (ConfigSt
 - [ ] **Step 2: Implement ConfigStore**
 
 ```rust
-use shared_types::{Layout, Settings, SystemStatus};
+use shared_types::{Layout, Settings};
 use std::fs;
 use std::path::PathBuf;
 
@@ -1268,8 +1294,8 @@ git commit -m "feat: add WindowCatalog with eligibility filtering"
 - Create: `src-tauri/src/arrange_orchestrator.rs`
 
 **Interfaces:**
-- Produces: `ArrangeOrchestrator::arrange(request, layouts, screens, adapter, catalog, engine) -> ArrangeResult`
-- Consumes: PlatformAdapter, LayoutEngine, WindowCatalog, shared-types (ArrangeRequest, ArrangeResult, PerWindowResult, Layout, ScreenInfo)
+- Produces: `ArrangeOrchestrator::arrange(request, layouts, screens, adapter, engine) -> ArrangeResult`
+- Consumes: PlatformAdapter, LayoutEngine, shared-types (ArrangeRequest, ArrangeResult, PerWindowResult, Layout, ScreenInfo)
 
 - [ ] **Step 1: Write failing test for successful arrange**
 
@@ -1279,7 +1305,6 @@ mod tests {
     use super::*;
     use crate::platform_adapter::MockPlatformAdapter;
     use crate::layout_engine::LayoutEngine;
-    use crate::window_catalog::WindowCatalog;
 
     #[test]
     fn test_arrange_success() {
@@ -1292,7 +1317,6 @@ mod tests {
                 state: WindowState { minimized: false, maximized: false, fullscreen: false, movable: true, resizable: true },
             },
         ];
-        let catalog = WindowCatalog::new(&adapter);
         let engine = LayoutEngine;
         let layouts = vec![Layout {
             id: "2col".into(), name: "Two Columns".into(),
@@ -1310,12 +1334,11 @@ mod tests {
             assignments: std::collections::HashMap::from([(0, "w1".into())]),
         };
 
-        let result = ArrangeOrchestrator::arrange(&request, &layouts, &screens, &adapter, &catalog, &engine);
+        let result = ArrangeOrchestrator::arrange(&request, &layouts, &screens, &adapter, &engine);
         assert!(result.success);
         assert_eq!(result.results.len(), 1);
         assert_eq!(result.results[0].window_id, "w1");
         assert!(matches!(result.results[0].status, MoveStatus::Moved));
-        // verify move was logged
         let log = adapter.move_log.lock().unwrap();
         assert_eq!(log.len(), 1);
     }
@@ -1323,7 +1346,6 @@ mod tests {
     #[test]
     fn test_arrange_rejects_stale_window() {
         let adapter = MockPlatformAdapter::new();
-        let catalog = WindowCatalog::new(&adapter);
         let engine = LayoutEngine;
         let layouts = vec![Layout {
             id: "2col".into(), name: "Two Columns".into(),
@@ -1339,7 +1361,7 @@ mod tests {
             screen_id: "DP-1".into(),
             assignments: std::collections::HashMap::from([(0, "nonexistent".into())]),
         };
-        let result = ArrangeOrchestrator::arrange(&request, &layouts, &screens, &adapter, &catalog, &engine);
+        let result = ArrangeOrchestrator::arrange(&request, &layouts, &screens, &adapter, &engine);
         assert!(!result.success);
         assert_eq!(result.results[0].status, MoveStatus::Failed);
     }
@@ -1362,7 +1384,6 @@ impl ArrangeOrchestrator {
         layouts: &[Layout],
         screens: &[ScreenInfo],
         adapter: &dyn PlatformAdapter,
-        catalog: &WindowCatalog,
         engine: &LayoutEngine,
     ) -> ArrangeResult {
         let layout = match layouts.iter().find(|l| l.id == request.layout_id) {
@@ -1567,17 +1588,14 @@ git commit -m "feat: add file-based logging with diagnostics module"
 use crate::platform_adapter::PlatformAdapter;
 use crate::config_store::ConfigStore;
 use crate::layout_engine::LayoutEngine;
-use crate::window_catalog::WindowCatalog;
 use crate::arrange_orchestrator::ArrangeOrchestrator;
 use crate::diagnostics::Diagnostics;
 use shared_types::*;
 use tauri::State;
-use std::sync::Mutex;
 
 pub struct AppState {
     pub adapter: Box<dyn PlatformAdapter>,
     pub config: ConfigStore,
-    pub catalog: Mutex<Option<WindowCatalog<'static>>>,
 }
 
 // SAFETY: AppState is only accessed from the Tauri command thread
@@ -1623,89 +1641,16 @@ fn arrange_windows(
 ) -> ArrangeResult {
     let (_, layouts, _) = state.config.load().unwrap_or_default();
     let screens = state.adapter.enumerate_screens();
-    let engine = LayoutEngine;
 
-    let workspace = state.adapter.current_workspace();
-    let adapter = state.adapter.as_ref();
-
-    // temporary catalog for validation
-    let windows = adapter.enumerate_windows(&workspace);
-
-    // synchronous arrangement
-    let layout = match layouts.iter().find(|l| l.id == request.layout_id) {
-        Some(l) => l,
-        None => return ArrangeResult {
-            success: false,
-            results: vec![PerWindowResult {
-                window_id: "".into(), status: MoveStatus::Failed,
-                actual_rect: None, error: Some("Layout not found".into()),
-            }],
-        },
-    };
-    let screen = match screens.iter().find(|s| s.id == request.screen_id) {
-        Some(s) => s,
-        None => return ArrangeResult {
-            success: false,
-            results: vec![PerWindowResult {
-                window_id: "".into(), status: MoveStatus::Failed,
-                actual_rect: None, error: Some("Screen not found".into()),
-            }],
-        },
-    };
-
-    let zones = match LayoutEngine::compute_zones(layout, screen) {
-        Ok(z) => z,
-        Err(e) => return ArrangeResult {
-            success: false,
-            results: vec![PerWindowResult {
-                window_id: "".into(), status: MoveStatus::Failed,
-                actual_rect: None, error: Some(e),
-            }],
-        },
-    };
-
-    // validate assignments exist
-    for (zone_idx, window_id) in &request.assignments {
-        if *zone_idx as usize >= zones.len() || !windows.iter().any(|w| &w.id == window_id) {
-            return ArrangeResult {
-                success: false,
-                results: vec![PerWindowResult {
-                    window_id: window_id.clone(), status: MoveStatus::Failed,
-                    actual_rect: None,
-                    error: Some("Window no longer exists or zone out of range".into()),
-                }],
-            };
-        }
-    }
-
-    let mut results = Vec::new();
-    for (zone_idx, window_id) in &request.assignments {
-        let zone = &zones[*zone_idx as usize];
-        let state = adapter.get_window_state(window_id).unwrap_or_default();
-        if state.minimized {
-            adapter.restore_window(window_id);
-        }
-        let frame = adapter.get_frame_extents(window_id);
-        let adjusted = Rect {
-            x: zone.x - frame.x,
-            y: zone.y - frame.y,
-            width: zone.width.saturating_sub((frame.width + frame.x as u32)),
-            height: zone.height.saturating_sub((frame.height + frame.y as u32)),
-        };
-        match adapter.move_resize_window(window_id, adjusted) {
-            Ok(actual) => results.push(PerWindowResult {
-                window_id: window_id.clone(), status: MoveStatus::Moved,
-                actual_rect: Some(actual), error: None,
-            }),
-            Err(e) => results.push(PerWindowResult {
-                window_id: window_id.clone(), status: MoveStatus::Failed,
-                actual_rect: None, error: Some(e),
-            }),
-        }
-    }
-
-    let all_moved = results.iter().all(|r| matches!(r.status, MoveStatus::Moved));
-    ArrangeResult { success: all_moved, results }
+    // Delegate to ArrangeOrchestrator from Task 7 — no duplicate logic
+    ArrangeOrchestrator::arrange(
+        &request,
+        &layouts,
+        &screens,
+        state.adapter.as_ref(),
+        state.adapter.as_ref(),
+        &LayoutEngine,
+    )
 }
 
 #[tauri::command]
@@ -1922,6 +1867,15 @@ import type { Layout } from "../shared-types";
 export const layouts = writable<Layout[]>([]);
 export const selectedLayoutId = writable<string>("");
 export const sessionOverrides = writable<{
+  ratio?: number;
+  gap_px?: number;
+  margin_px?: number;
+}>({});
+
+export function selectLayout(id: string) {
+  selectedLayoutId.set(id);
+  sessionOverrides.set({}); // Reset overrides when switching layouts
+}
   ratio?: number;
   gap_px?: number;
   margin_px?: number;
@@ -2336,7 +2290,203 @@ Due to the length of this plan, the remaining tasks follow the exact same patter
 
 **Task 17: Wire App.svelte** — mount all components, bootstrap data, register event listeners
 
+- [ ] **Step 1: Write App.svelte with full wiring**
+
+```svelte
+<script lang="ts">
+  import { onMount, onDestroy } from "svelte";
+  import TitleBar from "./components/TitleBar.svelte";
+  import TabNav from "./components/TabNav.svelte";
+  import ArrangeView from "./components/ArrangeView.svelte";
+  import LayoutsView from "./components/LayoutsView.svelte";
+  import SettingsView from "./components/SettingsView.svelte";
+  import ToastContainer from "./components/ToastContainer.svelte";
+  import ArrangeStateOverlay from "./components/ArrangeStateOverlay.svelte";
+  import { commands } from "./lib/commands";
+  import { registerEventListeners } from "./lib/events";
+  import { layouts, selectedLayoutId, selectLayout } from "./lib/stores/layout";
+  import { screens, selectedScreenId } from "./lib/stores/screen";
+  import { windows } from "./lib/stores/windows";
+  import { settings } from "./lib/stores/settings";
+  import { systemStatus } from "./lib/stores/systemStatus";
+  import { showToast } from "./lib/stores/toasts";
+
+  let activeTab: "arrange" | "layouts" | "settings" = "arrange";
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+  let unregisterEvents: (() => void) | undefined;
+
+  onMount(async () => {
+    try {
+      const data = await commands.bootstrap();
+      screens.set(data.screens);
+      layouts.set(data.layouts);
+      windows.set(data.windows);
+      settings.set(data.settings);
+      systemStatus.set(data.system_status);
+
+      // Auto-select screen containing Grid Screen
+      if (data.screens.length > 0) {
+        selectedScreenId.set(data.screens[0].id);
+      }
+      // Restore last layout or use first preset
+      if (data.settings.last_layout_id) {
+        selectLayout(data.settings.last_layout_id);
+      } else if (data.layouts.length > 0) {
+        selectLayout(data.layouts[0].id);
+      }
+
+      unregisterEvents = registerEventListeners();
+      loading = false;
+    } catch (e) {
+      error = String(e);
+      loading = false;
+    }
+  });
+
+  onDestroy(() => {
+    unregisterEvents?.();
+  });
+
+  function handleTabChange(e: CustomEvent<string>) {
+    activeTab = e.detail as "arrange" | "layouts" | "settings";
+  }
+</script>
+
+<div class="app">
+  <TitleBar />
+  <TabNav {activeTab} on:tabChange={(e) => activeTab = e.detail} />
+  <div class="view-container">
+    {#if loading}
+      <div class="loading">Loading...</div>
+    {:else if error}
+      <div class="error-state">
+        <p>Failed to start: {error}</p>
+        <button onclick={() => location.reload()}>Retry</button>
+      </div>
+    {:else}
+      {#if activeTab === "arrange"}
+        <ArrangeView />
+      {:else if activeTab === "layouts"}
+        <LayoutsView />
+      {:else}
+        <SettingsView />
+      {/if}
+    {/if}
+  </div>
+  <ToastContainer />
+  <ArrangeStateOverlay />
+</div>
+
+<style>
+  .app {
+    display: flex; flex-direction: column;
+    height: 100vh; background: var(--bg);
+    color: var(--text); font-family: 'Inter', sans-serif;
+  }
+  .view-container { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .loading, .error-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%; color: var(--text-dim);
+    font-size: 14px; gap: 12px;
+  }
+  .error-state button {
+    padding: 8px 20px; background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius-sm); cursor: pointer;
+    font-family: inherit; font-size: 13px;
+  }
+</style>
+```
+
+- [ ] **Step 2: Verify Svelte compilation**
+
+Run: `npm run check` expected: PASS
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/App.svelte
+git commit -m "feat: wire App.svelte with bootstrap, events, and tab routing"
+```
+
 **Task 18: 5 built-in layout presets** — seed config with presets on first launch
+
+- [ ] **Step 1: Add preset seeding to ConfigStore**
+
+Modify `src-tauri/src/config_store.rs`, add after `new()`:
+
+```rust
+pub fn seed_presets(&self) -> Result<(), String> {
+    let (_, layouts, _) = self.load()?;
+    if !layouts.is_empty() {
+        return Ok(()); // presets already exist
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let presets = vec![
+        Layout {
+            id: "2col".into(), name: "Two Columns".into(),
+            layout_type: LayoutType::Preset, zones: 2,
+            columns: "1fr 1fr".into(), rows: None, span_first: None,
+            ratio: Some(50), gap_px: 10, margin_px: 16,
+            created_at: now.clone(), updated_at: now.clone(),
+        },
+        Layout {
+            id: "3col".into(), name: "Three Columns".into(),
+            layout_type: LayoutType::Preset, zones: 3,
+            columns: "1fr 1fr 1fr".into(), rows: None, span_first: None,
+            ratio: None, gap_px: 10, margin_px: 16,
+            created_at: now.clone(), updated_at: now.clone(),
+        },
+        Layout {
+            id: "focus".into(), name: "Focus + Stack".into(),
+            layout_type: LayoutType::Preset, zones: 3,
+            columns: "2fr 1fr".into(), rows: Some("1fr 1fr".into()),
+            span_first: Some(true), ratio: None,
+            gap_px: 10, margin_px: 16,
+            created_at: now.clone(), updated_at: now.clone(),
+        },
+        Layout {
+            id: "main-side".into(), name: "Main + Sidebar".into(),
+            layout_type: LayoutType::Preset, zones: 2,
+            columns: "3fr 1fr".into(), rows: None, span_first: None,
+            ratio: Some(75), gap_px: 10, margin_px: 16,
+            created_at: now.clone(), updated_at: now.clone(),
+        },
+        Layout {
+            id: "3wide".into(), name: "3 Wide Center".into(),
+            layout_type: LayoutType::Preset, zones: 3,
+            columns: "1fr 2fr 1fr".into(), rows: None, span_first: None,
+            ratio: None, gap_px: 10, margin_px: 16,
+            created_at: now.clone(), updated_at: now,
+        },
+    ];
+
+    self.save_layouts(&presets)
+}
+```
+
+- [ ] **Step 2: Add chrono dependency**
+
+Edit `src-tauri/Cargo.toml`, add: `chrono = "0.4"`
+
+- [ ] **Step 3: Call seed_presets in main.rs**
+
+In `main()`, after `Diagnostics::init()`:
+```rust
+config.seed_presets().expect("Failed to seed layout presets");
+```
+
+- [ ] **Step 4: Verify compilation + test**
+
+Run: `cargo test -p grid-screen -- config_store::tests` expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src-tauri/
+git commit -m "feat: seed 5 built-in layout presets on first launch"
+```
 
 **Task 19: X11 Adapter Stub** — implement PlatformAdapter for X11 (uses x11rb or x11-dl crate)
 
@@ -2346,14 +2496,19 @@ Due to the length of this plan, the remaining tasks follow the exact same patter
 
 ## Note
 
-Tasks 12-20 follow the same TDD pattern as Tasks 1-11. Due to output limits, the remaining tasks are summarized above with their file lists. Each follows this structure:
-1. Write failing test (for Rust tasks) or verify component renders (for Svelte tasks)
-2. Implement minimal code
-3. Verify (tests pass / component renders)
+Tasks 12-16 follow the same pattern as Tasks 10-11: create Svelte components based on the mockup's HTML/CSS, wired to stores and commands from Task 10. Each component follows this structure:
+1. Create `.svelte` file with `<script>`, markup, and `<style>` from mockup CSS
+2. Wire to stores via `$store` syntax
+3. Verify component renders in browser
 4. Commit
+
+Tasks 19-20 are platform-specific infrastructure:
+- **Task 19: X11 Adapter** — implements `PlatformAdapter` for real X11 using `x11rb` crate. Key functions: `enumerate_screens()` via XRandR, `enumerate_windows()` via EWMH `_NET_CLIENT_LIST`, `move_resize_window()` via `_NET_MOVERESIZE_WINDOW`, `get_frame_extents()` via `_NET_FRAME_EXTENTS`. Blocking event dispatch via `select()` on X11 connection fd.
+- **Task 20: CI/CD** — `.github/workflows/ci.yml` (PR: cargo test + clippy + fmt + npm check) and `.github/workflows/release.yml` (tag push: cargo tauri build, upload to GitHub Release, publish version.json).
 
 The complete implementation produces a working Grid Screen MVP with:
 - Rust core: PlatformAdapter, ConfigStore, LayoutEngine, WindowCatalog, ArrangeOrchestrator, Diagnostics
 - Svelte UI: 25 components, 8 stores, IPC wrapper, event listeners
 - Tauri 2 shell: tray, window lifecycle, commands
+- 5 built-in layout presets seeded on first launch
 - CI/CD: PR checks + release builds on GitHub Actions
