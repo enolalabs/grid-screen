@@ -5,6 +5,7 @@
 mod app_shell;
 mod platform_adapter;
 mod x11_adapter;
+mod wayland_adapter;
 mod config_store;
 mod layout_engine;
 mod window_catalog;
@@ -15,6 +16,7 @@ use app_shell::*;
 use config_store::ConfigStore;
 use platform_adapter::{MockPlatformAdapter, PlatformAdapter};
 use x11_adapter::X11Adapter;
+use wayland_adapter::WaylandAdapter;
 use diagnostics::Diagnostics;
 use std::path::PathBuf;
 use tauri::Manager;
@@ -39,12 +41,20 @@ fn main() {
 
     tracing::info!("Grid Screen starting, config dir: {:?}", config_path);
 
-    let adapter: Box<dyn PlatformAdapter> = match X11Adapter::new() {
-        Ok(x11) => Box::new(x11),
-        Err(e) => {
-            tracing::warn!("X11 adapter failed: {} — using mock", e);
+    let adapter: Box<dyn PlatformAdapter> = {
+        // Try Wayland first (preferred on modern Linux)
+        if let Ok(wayland) = WaylandAdapter::new() {
+            tracing::info!("Using Wayland adapter");
+            Box::new(wayland)
+        } else if let Ok(x11) = X11Adapter::new() {
+            tracing::info!("Using X11 adapter");
+            Box::new(x11)
+        } else {
+            tracing::warn!("No display adapter — using mock");
             let mut mock = MockPlatformAdapter::new();
-            mock.system_status.errors.push(e);
+            mock.system_status.errors.push(
+                "No Wayland or X11 display available. Window enumeration and arrangement disabled.".into()
+            );
             Box::new(mock)
         }
     };

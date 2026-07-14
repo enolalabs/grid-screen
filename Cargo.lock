@@ -1357,7 +1357,9 @@ dependencies = [
 name = "grid-screen"
 version = "0.1.0"
 dependencies = [
+ "cc",
  "chrono",
+ "pkg-config",
  "serde",
  "serde_json",
  "shared-types",
