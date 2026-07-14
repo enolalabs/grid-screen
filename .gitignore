@@ -3,6 +3,7 @@ dist/
 target/
 src-tauri/target/
 src-tauri/gen/schemas/
+shared-types/bindings/
 .DS_Store
 *.log
 .superpowers/
