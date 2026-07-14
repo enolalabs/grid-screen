@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod arrange_orchestrator;
 mod config_store;
 mod layout_engine;
 mod platform_adapter;
