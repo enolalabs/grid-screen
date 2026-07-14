@@ -6,7 +6,7 @@ pub type EventStream<T> = tokio::sync::broadcast::Receiver<T>;
 pub trait PlatformAdapter: Send + Sync {
     fn enumerate_screens(&self) -> Vec<ScreenInfo>;
     fn current_workspace(&self) -> WorkspaceId;
-    fn enumerate_windows(&self, workspace: &WorkspaceId) -> Vec<WindowDescriptor>;
+    fn enumerate_windows(&self, workspace: &str) -> Vec<WindowDescriptor>;
     fn get_window_state(&self, window_id: &str) -> Option<WindowState>;
     fn get_frame_extents(&self, window_id: &str) -> Rect;
     fn restore_window(&self, window_id: &str);
@@ -70,7 +70,7 @@ impl PlatformAdapter for MockPlatformAdapter {
         self.workspace.clone()
     }
 
-    fn enumerate_windows(&self, _workspace: &WorkspaceId) -> Vec<WindowDescriptor> {
+    fn enumerate_windows(&self, _workspace: &str) -> Vec<WindowDescriptor> {
         self.windows.clone()
     }
 

@@ -4,6 +4,7 @@
 mod config_store;
 mod layout_engine;
 mod platform_adapter;
+mod window_catalog;
 
 fn main() {
     tauri::Builder::default()
