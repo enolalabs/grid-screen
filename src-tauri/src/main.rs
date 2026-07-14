@@ -3,6 +3,7 @@
 
 mod arrange_orchestrator;
 mod config_store;
+mod diagnostics;
 mod layout_engine;
 mod platform_adapter;
 mod window_catalog;
