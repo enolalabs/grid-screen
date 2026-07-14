@@ -4,6 +4,7 @@
 #[macro_use]
 mod app_shell;
 mod platform_adapter;
+mod x11_adapter;
 mod config_store;
 mod layout_engine;
 mod window_catalog;
@@ -12,7 +13,8 @@ mod diagnostics;
 
 use app_shell::*;
 use config_store::ConfigStore;
-use platform_adapter::MockPlatformAdapter;
+use platform_adapter::{MockPlatformAdapter, PlatformAdapter};
+use x11_adapter::X11Adapter;
 use diagnostics::Diagnostics;
 use std::path::PathBuf;
 use tauri::Manager;
@@ -37,10 +39,18 @@ fn main() {
 
     tracing::info!("Grid Screen starting, config dir: {:?}", config_path);
 
-    let adapter = MockPlatformAdapter::new();
+    let adapter: Box<dyn PlatformAdapter> = match X11Adapter::new() {
+        Ok(x11) => Box::new(x11),
+        Err(e) => {
+            tracing::warn!("X11 adapter failed: {} — using mock", e);
+            let mut mock = MockPlatformAdapter::new();
+            mock.system_status.errors.push(e);
+            Box::new(mock)
+        }
+    };
 
     let app_state = AppState {
-        adapter: Box::new(adapter),
+        adapter,
         config,
     };
 

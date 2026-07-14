@@ -17,6 +17,7 @@ tracing-appender = "0.2"
 shared-types = { path = "../shared-types" }
 tokio = { version = "1", features = ["sync"] }
 chrono = "0.4"
+x11rb = "0.13"
 
 [features]
 default = ["custom-protocol"]
