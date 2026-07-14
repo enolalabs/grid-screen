@@ -2,6 +2,7 @@
   import { layouts, selectedLayoutId, sessionOverrides, selectLayout } from "$lib/stores/layout";
 
   let open = $state(false);
+  let container: HTMLDivElement | undefined = $state();
 
   function toggleOpen() {
     open = !open;
@@ -13,13 +14,15 @@
   }
 
   function handleClickOutside(e: MouseEvent) {
-    if (open) open = false;
+    if (open && container && !container.contains(e.target as Node)) {
+      open = false;
+    }
   }
 </script>
 
 <svelte:window onclick={handleClickOutside} />
 
-<div class="selector" onclick={toggleOpen} role="button" tabindex="-1">
+<div class="selector" bind:this={container} onclick={toggleOpen} role="button" tabindex="-1">
   <svg class="selector-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <rect x="3" y="3" width="18" height="18" rx="2"/>
     <line x1="12" y1="3" x2="12" y2="21"/>

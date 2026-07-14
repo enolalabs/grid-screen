@@ -20,6 +20,18 @@
     (e.target as HTMLElement)?.setPointerCapture?.(e.pointerId);
     onDragStart(win.id, e.clientX, e.clientY);
   }
+
+  function handlePointerUp() {
+    dragging = false;
+  }
+
+  function handlePointerCancel() {
+    dragging = false;
+  }
+
+  function handlePointerLeave() {
+    dragging = false;
+  }
 </script>
 
 <li
@@ -27,6 +39,9 @@
   class:assigned={isAssigned}
   class:dragging={dragging}
   onpointerdown={handlePointerDown}
+  onpointerup={handlePointerUp}
+  onpointercancel={handlePointerCancel}
+  onpointerleave={handlePointerLeave}
   role="listitem"
 >
   <div class="app-icon" style="background:{win.icon_color}">{shortName}</div>
