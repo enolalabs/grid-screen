@@ -94,8 +94,8 @@ impl ArrangeOrchestrator {
             let adjusted = Rect {
                 x: zone.x - frame.x,
                 y: zone.y - frame.y,
-                width: zone.width - (frame.width + frame.x as u32),
-                height: zone.height - (frame.height + frame.y as u32),
+                width: (zone.width as i32 - frame.width as i32 - frame.x).max(0) as u32,
+                height: (zone.height as i32 - frame.height as i32 - frame.y).max(0) as u32,
             };
 
             match adapter.move_resize_window(window_id, adjusted) {

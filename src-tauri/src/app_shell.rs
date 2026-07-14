@@ -64,6 +64,7 @@ pub fn arrange_windows(state: State<AppState>, request: ArrangeRequest) -> Arran
 
 #[tauri::command]
 pub fn save_layout(state: State<AppState>, layout: Layout) -> Result<(), String> {
+    LayoutEngine::validate_layout(&layout)?;
     let (_, mut layouts, _) = state.config.load()?;
     if let Some(existing) = layouts.iter_mut().find(|l| l.id == layout.id) {
         *existing = layout;

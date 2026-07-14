@@ -43,8 +43,8 @@ impl LayoutEngine {
                 Rect { x: x1, y: y0 + h_top + layout.gap_px as i32, width: w_right as u32, height: h_bottom as u32 },
             ])
         } else {
-            // Equal-width columns
-            let parts = num_cols;
+            // Equal-width columns — use zones as authoritative count
+            let parts = zones;
             let gaps = (parts - 1) as i32 * layout.gap_px as i32;
             let available = inner_width - gaps;
             let zone_width = available / parts as i32;

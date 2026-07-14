@@ -54,7 +54,7 @@ impl PlatformAdapter for X11Adapter {
     }
 
     fn get_window_state(&self, _window_id: &str) -> Option<WindowState> {
-        Some(WindowState::default())
+        None // stub: no real window tracking, forces stale-window detection
     }
 
     fn get_frame_extents(&self, _window_id: &str) -> Rect {
